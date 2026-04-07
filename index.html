@@ -3,144 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab Experiment Monitor | NCU Applied Geology</title>
+    <title>Lab Matrix | NCU Applied Geology</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .card-completed { border-top: 6px solid #10b981; }
-        .card-in-progress { border-top: 6px solid #f59e0b; }
-        .card-delayed { border-top: 6px solid #ef4444; }
-        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: bold; text-align: center; } /* Yellow */
+        .status-completed { background-color: #bbf7d0; color: #166534; font-weight: bold; text-align: center; }   /* Green */
+        .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: bold; text-align: center; }     /* Red */
+        th { background-color: #1e293b; color: white; padding: 12px; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.875rem; }
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-10 text-center">
-            <h1 class="text-3xl font-black text-slate-900 tracking-tight uppercase">🧪 Lab Progress Monitor</h1>
-            <p class="text-slate-500 font-medium italic mt-2">Real-time status tracking for NCU Applied Geology Laboratory</p>
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-10 flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">🧪 GEOTECHNICAL TEST MATRIX</h1>
+                <p class="text-slate-500 font-medium italic">NCU Applied Geology Lab - April 2026</p>
+            </div>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Submit Update</a>
         </header>
 
-        <section class="mb-16">
-            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
-                <div class="bg-blue-600 p-4 text-white text-center font-bold uppercase tracking-widest text-sm">
-                    Submit Laboratory Status Update
-                </div>
-                <iframe 
-                    src="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform?embedded=true" 
-                    width="100%" 
-                    height="850" 
-                    frameborder="0" 
-                    marginheight="0" 
-                    marginwidth="0">Loading…</iframe>
+        <div class="bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200">
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr>
+                            <th>Sample ID</th>
+                            <th>Drying Samples</th>
+                            <th>Falling Head Test</th>
+                            <th>Sieve Analysis Test</th>
+                            <th>Water Retention Curve</th>
+                            <th>Notes/Problems</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body">
+                        <tr>
+                            <td colspan="6" class="text-center py-20 text-slate-400 animate-pulse">Processing laboratory data matrix...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        </section>
-
-        <section>
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Live Status Board</h2>
-                <span class="text-xs font-bold text-slate-400">Last updated: Automatic</span>
-            </div>
-            
-            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="col-span-full py-12 text-center text-slate-400 font-medium animate-pulse">
-                    Connecting to laboratory database...
-                </div>
-            </div>
-        </section>
-
-        <footer class="mt-20 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
-            &copy; 2026 Laboratory Monitoring System | NCU Applied Geology
-        </footer>
+        </div>
     </div>
 
     <script>
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5SRsUBQcGkPLKTnGXeymuHQ0hTvQTUSIw-BY29FdvaLt-XDAnVjUzHJNhRoQCBgu3Wu5ANX6m_rbd/pub?output=csv';
 
-        const taskIcons = {
-            'Drying Samples': '🌡️',
-            'Falling Head Test': '🧪',
-            'Sieve Analysis Test': '🏜️',
-            'Water Retention Curve': '💧'
-        };
+        const tasks = ["Drying Samples", "Falling Head Test", "Sieve Analysis Test", "Water Retention Curve"];
 
-        function refreshData() {
-            Papa.parse(csvUrl, {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    const container = document.getElementById('dashboard');
-                    container.innerHTML = '';
-                    
-                    const latestUpdates = {};
-                    results.data.reverse().forEach(row => {
-                        const group = row["Group Number"];
-                        if (group && !latestUpdates[group]) {
-                            latestUpdates[group] = row;
-                        }
-                    });
-
-                    Object.keys(latestUpdates).sort().forEach(groupName => {
-                        const data = latestUpdates[groupName];
-                        const status = data["Task Status"];
-                        const isCompleted = status === 'Completed';
-                        const isDelayed = status === 'Delayed';
-                        const icon = taskIcons[data["Your Current Task"]] || '📋';
-                        
-                        let cardStyle = 'card-in-progress';
-                        let badgeStyle = 'bg-amber-100 text-amber-700';
-                        let dotStyle = 'bg-amber-500 pulse';
-                        
-                        if (isCompleted) {
-                            cardStyle = 'card-completed';
-                            badgeStyle = 'bg-emerald-100 text-emerald-700';
-                            dotStyle = 'bg-emerald-500';
-                        } else if (isDelayed) {
-                            cardStyle = 'card-delayed';
-                            badgeStyle = 'bg-rose-100 text-rose-700';
-                            dotStyle = 'bg-rose-500 pulse';
-                        }
-
-                        const card = document.createElement('div');
-                        card.className = `bg-white ${cardStyle} p-6 rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-lg`;
-                        
-                        card.innerHTML = `
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${groupName}</span>
-                                <span class="text-[10px] text-slate-400 font-mono">${data["Timestamp"].split(' ')[0]}</span>
-                            </div>
-                            
-                            <div class="mb-6">
-                                <div class="text-3xl mb-2">${icon}</div>
-                                <h3 class="text-lg font-bold text-slate-800 leading-tight">${data["Your Current Task"]}</h3>
-                                <p class="text-blue-600 text-sm font-bold mt-1">Sample ID: ${data["Sample Number"]}</p>
-                            </div>
-
-                            <div class="flex items-center">
-                                <div class="w-2 h-2 rounded-full mr-2 ${dotStyle}"></div>
-                                <span class="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${badgeStyle}">
-                                    ${status}
-                                </span>
-                            </div>
-
-                            ${data["Report Problems"] && data["Report Problems"] !== "NaN" ? `
-                                <div class="mt-4 p-3 bg-slate-50 rounded-lg text-xs italic text-slate-500">
-                                    "Note: ${data["Report Problems"]}"
-                                </div>
-                            ` : ''}
-                        `;
-                        container.appendChild(card);
-                    });
-                }
-            });
+        function getStatusClass(status) {
+            if (status === 'In Progress') return 'status-in-progress';
+            if (status === 'Completed') return 'status-completed';
+            if (status === 'Delayed') return 'status-delayed';
+            return '';
         }
 
-        // Run on load
-        refreshData();
-        // Auto refresh every 5 minutes
-        setInterval(refreshData, 300000);
+        Papa.parse(csvUrl, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                const matrix = {};
+                const notes = {};
+
+                // Process data: keep only the newest status for each Sample + Task pair
+                results.data.forEach(row => {
+                    const sample = row["Sample Number"];
+                    const task = row["Your Current Task"];
+                    const status = row["Task Status"];
+                    const problem = row["Report Problems"];
+
+                    if (sample) {
+                        if (!matrix[sample]) matrix[sample] = {};
+                        matrix[sample][task] = status;
+                        if (problem && problem !== "NaN") notes[sample] = problem;
+                    }
+                });
+
+                const tbody = document.getElementById('matrix-body');
+                tbody.innerHTML = '';
+
+                // Sort samples naturally (1-0, 1-3, 1-5...)
+                const sortedSamples = Object.keys(matrix).sort();
+
+                sortedSamples.forEach(sample => {
+                    const tr = document.createElement('tr');
+                    
+                    // Column 1: Sample ID
+                    let html = `<td class="font-bold text-slate-700 bg-slate-50">${sample}</td>`;
+                    
+                    // Columns 2-5: Tasks
+                    tasks.forEach(task => {
+                        const status = matrix[sample][task] || '';
+                        html += `<td class="${getStatusClass(status)}">${status}</td>`;
+                    });
+
+                    // Column 6: Notes
+                    html += `<td class="text-xs text-slate-500 italic">${notes[sample] || '-'}</td>`;
+                    
+                    tr.innerHTML = html;
+                    tbody.appendChild(tr);
+                });
+            }
+        });
     </script>
 </body>
 </html>
