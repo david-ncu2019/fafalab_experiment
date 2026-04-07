@@ -3,78 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab Matrix Dashboard | NCU Applied Geology</title>
+    <title>FAFALAB Experiments | 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
         
-        /* Status Color Coding */
-        .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: 700; text-align: center; } /* Yellow */
-        .status-completed { background-color: #bbf7d0; color: #166534; font-weight: 700; text-align: center; }   /* Green */
-        .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: 700; text-align: center; }     /* Red */
+        .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: 700; text-align: center; }
+        .status-completed { background-color: #bbf7d0; color: #166534; font-weight: 700; text-align: center; }
+        .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: 700; text-align: center; }
         
-        th { background-color: #0f172a; color: #f8fafc; padding: 16px; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; border: 1px solid #334155; }
-        td { border: 1px solid #e2e8f0; padding: 12px; font-size: 0.85rem; transition: all 0.2s; }
-        tr:hover td:first-child { background-color: #eff6ff; color: #2563eb; }
+        th { background-color: #0f172a; color: #f8fafc; padding: 12px; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; border: 1px solid #334155; }
+        td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.85rem; }
+        .group-header { background-color: #f1f5f9; font-weight: 800; color: #475569; text-align: center; }
     </style>
 </head>
 <body class="p-6 md:p-12">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-12 flex flex-col md:flex-row justify-between items-center border-b border-slate-200 pb-8 gap-4">
-            <div class="text-center md:text-left">
-                <h1 class="text-4xl font-black tracking-tighter text-slate-900">LAB STATUS MATRIX</h1>
-                <p class="text-slate-500 font-medium mt-1">Real-time Soil Mechanics Testing Progress — April 2026</p>
-            </div>
-            <div class="flex gap-3">
-                <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" 
-                   class="bg-slate-900 hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-slate-200">
-                    Submit Lab Update
-                </a>
-            </div>
+        <header class="mb-12 text-center md:text-left border-b border-slate-200 pb-8">
+            <h1 class="text-4xl font-black tracking-tighter text-slate-900">FAFALAB EXPERIMENTS</h1>
+            <p class="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm">April 2026</p>
         </header>
 
-        <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-200">
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse">
+        <section class="mb-16">
+            <h2 class="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight flex items-center">
+                <span class="bg-blue-600 w-2 h-6 mr-3"></span> Sample Status Matrix
+            </h2>
+            <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200">
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="w-16">No.</th>
+                                <th class="w-32">Sample ID</th>
+                                <th>Drying Samples</th>
+                                <th>Falling Head Test</th>
+                                <th>Sieve Analysis Test</th>
+                                <th>Water Retention Curve</th>
+                                <th class="w-64">Observations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight flex items-center">
+                <span class="bg-indigo-600 w-2 h-6 mr-3"></span> Group Performance Summary
+            </h2>
+            <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200 max-w-4xl">
+                <table class="w-full border-collapse text-center">
                     <thead>
                         <tr>
-                            <th class="text-left w-32">Sample ID</th>
-                            <th>Drying Samples</th>
-                            <th>Falling Head Test</th>
-                            <th>Sieve Analysis Test</th>
-                            <th>Water Retention Curve</th>
-                            <th class="w-64">Observations / Issues</th>
+                            <th class="text-left pl-6">Group Name</th>
+                            <th>In Progress</th>
+                            <th>Completed</th>
+                            <th>Delayed</th>
+                            <th>Notes/Issues</th>
                         </tr>
                     </thead>
-                    <tbody id="matrix-body">
-                        <tr>
-                            <td colspan="6" class="text-center py-32">
-                                <div class="flex flex-col items-center justify-center space-y-4">
-                                    <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing Laboratory Data...</p>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="summary-body">
+                        </tbody>
                 </table>
             </div>
-        </div>
+        </section>
 
-        <div class="mt-8 flex flex-wrap gap-6 justify-center md:justify-start">
-            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
-                <div class="w-4 h-4 rounded bg-emerald-200 border border-emerald-400"></div>
-                <span>COMPLETED</span>
-            </div>
-            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
-                <div class="w-4 h-4 rounded bg-yellow-200 border border-yellow-400"></div>
-                <span>IN PROGRESS</span>
-            </div>
-            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
-                <div class="w-4 h-4 rounded bg-red-200 border border-red-400"></div>
-                <span>DELAYED / BLOCKED</span>
-            </div>
+        <div class="flex justify-center mt-12">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" 
+               class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black transition-all shadow-xl">
+                SUBMIT LAB UPDATE
+            </a>
         </div>
     </div>
 
@@ -83,87 +85,93 @@
         const tasks = ["Drying Samples", "Falling Head Test", "Sieve Analysis Test", "Water Retention Curve"];
 
         function getStatusClass(status) {
-            const s = status ? status.trim() : '';
-            if (s === 'In Progress') return 'status-in-progress';
-            if (s === 'Completed') return 'status-completed';
-            if (s === 'Delayed') return 'status-delayed';
+            if (status === 'In Progress') return 'status-in-progress';
+            if (status === 'Completed') return 'status-completed';
+            if (status === 'Delayed') return 'status-delayed';
             return '';
         }
 
-        function loadMatrix() {
+        function loadDashboard() {
             Papa.parse(csvUrl, {
                 download: true,
                 header: true,
                 complete: function(results) {
                     const matrix = {};
                     const latestNotes = {};
+                    const groupStats = {
+                        "Group 1": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
+                        "Group 2": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
+                        "Group 3": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
+                        "Group 4": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
+                        "Group 5": { inProgress: 0, completed: 0, delayed: 0, notes: 0 }
+                    };
 
-                    // Logic: Process chronologically to ensure 'Completed' overwrites 'In Progress'
                     results.data.forEach(row => {
                         const sample = row["Sample Number"];
                         const task = row["Your Current Task"];
                         const status = row["Task Status"];
+                        const group = row["Group Number"];
                         const note = row["Report Problems"];
 
                         if (sample && task) {
                             if (!matrix[sample]) matrix[sample] = {};
                             
-                            // Status Overwriting Logic
-                            // We only update if it's the first entry OR if the new entry is 'Completed' or 'Delayed'
-                            // This ensures that once a task is green (Completed), it stays green.
+                            // Matrix Logic: Completed overwrites In Progress
                             const currentStatus = matrix[sample][task];
                             if (!currentStatus || status === 'Completed' || status === 'Delayed' || currentStatus === 'In Progress') {
                                 matrix[sample][task] = status;
                             }
+                            if (note && note.trim() !== "" && note !== "NaN") latestNotes[sample] = note;
+                        }
 
-                            // Always keep the most recent note for that sample
-                            if (note && note.trim() !== "" && note !== "NaN") {
-                                latestNotes[sample] = note;
-                            }
+                        // Summary Logic: Count total reports/commits per group
+                        if (group && groupStats[group]) {
+                            if (status === 'In Progress') groupStats[group].inProgress++;
+                            if (status === 'Completed') groupStats[group].completed++;
+                            if (status === 'Delayed') groupStats[group].delayed++;
+                            if (note && note.trim() !== "" && note !== "NaN") groupStats[group].notes++;
                         }
                     });
 
-                    const tbody = document.getElementById('matrix-body');
-                    tbody.innerHTML = '';
-
-                    // Natural sorting for Sample IDs (e.g., 1-0 before 1-10)
-                    const sortedSamples = Object.keys(matrix).sort((a, b) => 
-                        a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'})
-                    );
-
-                    if (sortedSamples.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-20 text-slate-400">No laboratory data found.</td></tr>';
-                        return;
-                    }
-
-                    sortedSamples.forEach(sample => {
+                    // Render Matrix Table
+                    const matrixBody = document.getElementById('matrix-body');
+                    matrixBody.innerHTML = '';
+                    const sortedSamples = Object.keys(matrix).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+                    
+                    sortedSamples.forEach((sample, index) => {
                         const tr = document.createElement('tr');
-                        
-                        // ID Column
-                        let rowHtml = `<td class="font-black text-slate-900 bg-slate-50 border-r-2 border-slate-100">${sample}</td>`;
-                        
-                        // Task Columns
+                        let rowHtml = `<td class="text-center text-slate-400 font-mono text-xs">${index + 1}</td>`;
+                        rowHtml += `<td class="font-black text-slate-900 bg-slate-50">${sample}</td>`;
                         tasks.forEach(task => {
                             const status = matrix[sample][task] || '';
                             rowHtml += `<td class="${getStatusClass(status)}">${status}</td>`;
                         });
-
-                        // Notes Column
-                        const noteText = latestNotes[sample] || '';
-                        rowHtml += `<td class="text-[11px] text-slate-500 leading-tight italic bg-slate-50/50">${noteText}</td>`;
-                        
+                        rowHtml += `<td class="text-[11px] text-slate-500 italic bg-slate-50/30">${latestNotes[sample] || '-'}</td>`;
                         tr.innerHTML = rowHtml;
-                        tbody.appendChild(tr);
+                        matrixBody.appendChild(tr);
+                    });
+
+                    // Render Summary Table
+                    const summaryBody = document.getElementById('summary-body');
+                    summaryBody.innerHTML = '';
+                    Object.keys(groupStats).forEach(group => {
+                        const stats = groupStats[group];
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="text-left pl-6 font-bold text-slate-700 bg-slate-50">${group}</td>
+                            <td class="font-bold text-amber-600">${stats.inProgress}</td>
+                            <td class="font-bold text-emerald-600">${stats.completed}</td>
+                            <td class="font-bold text-rose-600">${stats.delayed}</td>
+                            <td class="text-slate-400 font-medium">${stats.notes}</td>
+                        `;
+                        summaryBody.appendChild(tr);
                     });
                 }
             });
         }
 
-        // Initial Load
-        loadMatrix();
-        
-        // Auto-refresh data every 2 minutes for real-time monitoring
-        setInterval(loadMatrix, 120000);
+        loadDashboard();
+        setInterval(loadDashboard, 120000); // Auto-refresh every 2 mins
     </script>
 </body>
 </html>
