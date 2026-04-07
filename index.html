@@ -3,41 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab Progress Dashboard | NCU Applied Geology</title>
+    <title>Lab Experiment Monitor | NCU Applied Geology</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .card-completed { border-top: 8px solid #10b981; background: white; }
-        .card-in-progress { border-top: 8px solid #f59e0b; background: white; }
-        .card-delayed { border-top: 8px solid #ef4444; background: white; }
-        .status-pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .card-completed { border-top: 6px solid #10b981; }
+        .card-in-progress { border-top: 6px solid #f59e0b; }
+        .card-delayed { border-top: 6px solid #ef4444; }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
 </head>
-<body class="p-6">
+<body class="p-4 md:p-8">
     <div class="max-w-6xl mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
-            <div>
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">🧪 LAB EXPERIMENTS - APRIL 2026</h1>
-                <p class="text-slate-500 mt-2 text-lg font-medium">Real-time Geotechnical Laboratory Progress Monitor</p>
-            </div>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" 
-               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:-translate-y-1 flex items-center">
-                <span class="mr-2">+</span> Submit New Update
-            </a>
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight uppercase">🧪 Lab Progress Monitor</h1>
+            <p class="text-slate-500 font-medium italic mt-2">Real-time status tracking for NCU Applied Geology Laboratory</p>
         </header>
 
-        <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div class="text-center col-span-full py-20">
-                <p class="text-slate-400 text-lg animate-pulse font-medium">Synchronizing data from Laboratory database...</p>
+        <section class="mb-16">
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                <div class="bg-blue-600 p-4 text-white text-center font-bold uppercase tracking-widest text-sm">
+                    Submit Laboratory Status Update
+                </div>
+                <iframe 
+                    src="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform?embedded=true" 
+                    width="100%" 
+                    height="850" 
+                    frameborder="0" 
+                    marginheight="0" 
+                    marginwidth="0">Loading…</iframe>
             </div>
-        </div>
+        </section>
+
+        <section>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Live Status Board</h2>
+                <span class="text-xs font-bold text-slate-400">Last updated: Automatic</span>
+            </div>
+            
+            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full py-12 text-center text-slate-400 font-medium animate-pulse">
+                    Connecting to laboratory database...
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-20 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
+            &copy; 2026 Laboratory Monitoring System | NCU Applied Geology
+        </footer>
     </div>
 
     <script>
-        // Your Published CSV Link
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5SRsUBQcGkPLKTnGXeymuHQ0hTvQTUSIw-BY29FdvaLt-XDAnVjUzHJNhRoQCBgu3Wu5ANX6m_rbd/pub?output=csv';
 
         const taskIcons = {
@@ -47,80 +66,81 @@
             'Water Retention Curve': '💧'
         };
 
-        Papa.parse(csvUrl, {
-            download: true,
-            header: true,
-            complete: function(results) {
-                const container = document.getElementById('dashboard');
-                container.innerHTML = '';
-                
-                // Fetch the latest entry for each unique Group Number
-                const latestUpdates = {};
-                results.data.reverse().forEach(row => {
-                    const group = row["Group Number"];
-                    if (group && !latestUpdates[group]) {
-                        latestUpdates[group] = row;
-                    }
-                });
+        function refreshData() {
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    const container = document.getElementById('dashboard');
+                    container.innerHTML = '';
+                    
+                    const latestUpdates = {};
+                    results.data.reverse().forEach(row => {
+                        const group = row["Group Number"];
+                        if (group && !latestUpdates[group]) {
+                            latestUpdates[group] = row;
+                        }
+                    });
 
-                // Sort and Display
-                Object.keys(latestUpdates).sort().forEach(groupName => {
-                    const data = latestUpdates[groupName];
-                    const status = data["Task Status"];
-                    const isCompleted = status === 'Completed';
-                    const isDelayed = status === 'Delayed';
-                    const icon = taskIcons[data["Your Current Task"]] || '📋';
-                    
-                    let cardClass = 'card-in-progress';
-                    let statusBadgeClass = 'bg-amber-100 text-amber-700';
-                    let dotClass = 'bg-amber-500 status-pulse';
-                    
-                    if (isCompleted) {
-                        cardClass = 'card-completed';
-                        statusBadgeClass = 'bg-emerald-100 text-emerald-700';
-                        dotClass = 'bg-emerald-500';
-                    } else if (isDelayed) {
-                        cardClass = 'card-delayed';
-                        statusBadgeClass = 'bg-rose-100 text-rose-700';
-                        dotClass = 'bg-rose-500 status-pulse';
-                    }
-
-                    const card = document.createElement('div');
-                    card.className = `${cardClass} p-8 rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-xl`;
-                    
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-6">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">${groupName}</span>
-                            <span class="text-xs text-slate-400">${data["Timestamp"].split(' ')[0]}</span>
-                        </div>
+                    Object.keys(latestUpdates).sort().forEach(groupName => {
+                        const data = latestUpdates[groupName];
+                        const status = data["Task Status"];
+                        const isCompleted = status === 'Completed';
+                        const isDelayed = status === 'Delayed';
+                        const icon = taskIcons[data["Your Current Task"]] || '📋';
                         
-                        <div class="mb-8">
-                            <div class="text-4xl mb-3">${icon}</div>
-                            <h3 class="text-xl font-bold text-slate-800 leading-tight">${data["Your Current Task"]}</h3>
-                            <div class="flex items-center mt-2 text-blue-600">
-                                <span class="text-xs font-bold uppercase mr-1 text-slate-400">Sample:</span>
-                                <span class="font-bold tracking-tight">${data["Sample Number"]}</span>
-                            </div>
-                        </div>
+                        let cardStyle = 'card-in-progress';
+                        let badgeStyle = 'bg-amber-100 text-amber-700';
+                        let dotStyle = 'bg-amber-500 pulse';
+                        
+                        if (isCompleted) {
+                            cardStyle = 'card-completed';
+                            badgeStyle = 'bg-emerald-100 text-emerald-700';
+                            dotStyle = 'bg-emerald-500';
+                        } else if (isDelayed) {
+                            cardStyle = 'card-delayed';
+                            badgeStyle = 'bg-rose-100 text-rose-700';
+                            dotStyle = 'bg-rose-500 pulse';
+                        }
 
-                        <div class="flex items-center mb-4">
-                            <div class="w-2.5 h-2.5 rounded-full mr-2.5 ${dotClass}"></div>
-                            <span class="px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tighter ${statusBadgeClass}">
-                                ${status}
-                            </span>
-                        </div>
-
-                        ${data["Report Problems"] ? `
-                            <div class="mt-6 pt-4 border-t border-slate-50">
-                                <p class="text-[10px] text-slate-400 uppercase font-black mb-2 tracking-widest">Technician Notes:</p>
-                                <p class="text-sm text-slate-600 leading-relaxed italic italic">"${data["Report Problems"]}"</p>
+                        const card = document.createElement('div');
+                        card.className = `bg-white ${cardStyle} p-6 rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-lg`;
+                        
+                        card.innerHTML = `
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${groupName}</span>
+                                <span class="text-[10px] text-slate-400 font-mono">${data["Timestamp"].split(' ')[0]}</span>
                             </div>
-                        ` : ''}
-                    `;
-                    container.appendChild(card);
-                });
-            }
-        });
+                            
+                            <div class="mb-6">
+                                <div class="text-3xl mb-2">${icon}</div>
+                                <h3 class="text-lg font-bold text-slate-800 leading-tight">${data["Your Current Task"]}</h3>
+                                <p class="text-blue-600 text-sm font-bold mt-1">Sample ID: ${data["Sample Number"]}</p>
+                            </div>
+
+                            <div class="flex items-center">
+                                <div class="w-2 h-2 rounded-full mr-2 ${dotStyle}"></div>
+                                <span class="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${badgeStyle}">
+                                    ${status}
+                                </span>
+                            </div>
+
+                            ${data["Report Problems"] && data["Report Problems"] !== "NaN" ? `
+                                <div class="mt-4 p-3 bg-slate-50 rounded-lg text-xs italic text-slate-500">
+                                    "Note: ${data["Report Problems"]}"
+                                </div>
+                            ` : ''}
+                        `;
+                        container.appendChild(card);
+                    });
+                }
+            });
+        }
+
+        // Run on load
+        refreshData();
+        // Auto refresh every 5 minutes
+        setInterval(refreshData, 300000);
     </script>
 </body>
 </html>
