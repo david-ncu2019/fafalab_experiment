@@ -10,19 +10,44 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
         
+        /* Status Color Coding */
         .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: 700; text-align: center; }
         .status-completed { background-color: #bbf7d0; color: #166534; font-weight: 700; text-align: center; }
         .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: 700; text-align: center; }
         
+        /* Formatting for the Cell and Counter */
+        td { 
+            border: 1px solid #e2e8f0; 
+            padding: 12px; 
+            font-size: 0.85rem; 
+            position: relative; /* Necessary for absolute positioning of the counter */
+        }
+        
+        .appearance-counter {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            color: black;
+            font-size: 10pt;
+            font-weight: 800;
+            /* White Halo Effect */
+            text-shadow: 
+                -1px -1px 0 #fff,  
+                 1px -1px 0 #fff,
+                -1px  1px 0 #fff,
+                 1px  1px 0 #fff,
+                 0px  0px 4px #fff;
+            pointer-events: none;
+        }
+
         th { background-color: #0f172a; color: #f8fafc; padding: 12px; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; border: 1px solid #334155; }
-        td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.85rem; }
         .group-header { background-color: #f1f5f9; font-weight: 800; color: #475569; text-align: center; }
     </style>
 </head>
 <body class="p-6 md:p-12">
     <div class="max-w-7xl mx-auto">
         <header class="mb-12 text-center md:text-left border-b border-slate-200 pb-8">
-            <h1 class="text-4xl font-black tracking-tighter text-slate-900">FAFALAB EXPERIMENTS</h1>
+            <h1 class="text-4xl font-black tracking-tighter text-slate-900 uppercase">FAFALAB EXPERIMENTS</h1>
             <p class="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm">April 2026</p>
         </header>
 
@@ -96,15 +121,10 @@
                 download: true,
                 header: true,
                 complete: function(results) {
-                    const matrix = {};
+                    const matrix = {};      // Stores the current displayed status
+                    const counters = {};    // Stores counts for each status per sample/task
                     const latestNotes = {};
-                    const groupStats = {
-                        "Group 1": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
-                        "Group 2": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
-                        "Group 3": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
-                        "Group 4": { inProgress: 0, completed: 0, delayed: 0, notes: 0 },
-                        "Group 5": { inProgress: 0, completed: 0, delayed: 0, notes: 0 }
-                    };
+                    const groupStats = {"Group 1": {inProgress:0, completed:0, delayed:0, notes:0}, "Group 2": {inProgress:0, completed:0, delayed:0, notes:0}, "Group 3": {inProgress:0, completed:0, delayed:0, notes:0}, "Group 4": {inProgress:0, completed:0, delayed:0, notes:0}, "Group 5": {inProgress:0, completed:0, delayed:0, notes:0}};
 
                     results.data.forEach(row => {
                         const sample = row["Sample Number"];
@@ -115,8 +135,13 @@
 
                         if (sample && task) {
                             if (!matrix[sample]) matrix[sample] = {};
+                            if (!counters[sample]) counters[sample] = {};
+                            if (!counters[sample][task]) counters[sample][task] = {};
                             
-                            // Matrix Logic: Completed overwrites In Progress
+                            // Initialize counter for this specific status
+                            counters[sample][task][status] = (counters[sample][task][status] || 0) + 1;
+
+                            // Matrix Logic: Prioritize Completed status
                             const currentStatus = matrix[sample][task];
                             if (!currentStatus || status === 'Completed' || status === 'Delayed' || currentStatus === 'In Progress') {
                                 matrix[sample][task] = status;
@@ -124,7 +149,6 @@
                             if (note && note.trim() !== "" && note !== "NaN") latestNotes[sample] = note;
                         }
 
-                        // Summary Logic: Count total reports/commits per group
                         if (group && groupStats[group]) {
                             if (status === 'In Progress') groupStats[group].inProgress++;
                             if (status === 'Completed') groupStats[group].completed++;
@@ -133,7 +157,7 @@
                         }
                     });
 
-                    // Render Matrix Table
+                    // Render Tables
                     const matrixBody = document.getElementById('matrix-body');
                     matrixBody.innerHTML = '';
                     const sortedSamples = Object.keys(matrix).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
@@ -142,28 +166,26 @@
                         const tr = document.createElement('tr');
                         let rowHtml = `<td class="text-center text-slate-400 font-mono text-xs">${index + 1}</td>`;
                         rowHtml += `<td class="font-black text-slate-900 bg-slate-50">${sample}</td>`;
+                        
                         tasks.forEach(task => {
                             const status = matrix[sample][task] || '';
-                            rowHtml += `<td class="${getStatusClass(status)}">${status}</td>`;
+                            const count = (counters[sample][task] && counters[sample][task][status]) || 0;
+                            const countDisplay = count > 0 ? `<span class="appearance-counter">${count}</span>` : '';
+                            
+                            rowHtml += `<td class="${getStatusClass(status)}">${status}${countDisplay}</td>`;
                         });
+                        
                         rowHtml += `<td class="text-[11px] text-slate-500 italic bg-slate-50/30">${latestNotes[sample] || '-'}</td>`;
                         tr.innerHTML = rowHtml;
                         matrixBody.appendChild(tr);
                     });
 
-                    // Render Summary Table
                     const summaryBody = document.getElementById('summary-body');
                     summaryBody.innerHTML = '';
                     Object.keys(groupStats).forEach(group => {
                         const stats = groupStats[group];
                         const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td class="text-left pl-6 font-bold text-slate-700 bg-slate-50">${group}</td>
-                            <td class="font-bold text-amber-600">${stats.inProgress}</td>
-                            <td class="font-bold text-emerald-600">${stats.completed}</td>
-                            <td class="font-bold text-rose-600">${stats.delayed}</td>
-                            <td class="text-slate-400 font-medium">${stats.notes}</td>
-                        `;
+                        tr.innerHTML = `<td class="text-left pl-6 font-bold text-slate-700 bg-slate-50">${group}</td><td class="font-bold text-amber-600">${stats.inProgress}</td><td class="font-bold text-emerald-600">${stats.completed}</td><td class="font-bold text-rose-600">${stats.delayed}</td><td class="text-slate-400 font-medium">${stats.notes}</td>`;
                         summaryBody.appendChild(tr);
                     });
                 }
@@ -171,7 +193,7 @@
         }
 
         loadDashboard();
-        setInterval(loadDashboard, 120000); // Auto-refresh every 2 mins
+        setInterval(loadDashboard, 120000);
     </script>
 </body>
 </html>
