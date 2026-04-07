@@ -3,111 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab Matrix | NCU Applied Geology</title>
+    <title>Lab Matrix Dashboard | NCU Applied Geology</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: bold; text-align: center; } /* Yellow */
-        .status-completed { background-color: #bbf7d0; color: #166534; font-weight: bold; text-align: center; }   /* Green */
-        .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: bold; text-align: center; }     /* Red */
-        th { background-color: #1e293b; color: white; padding: 12px; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-        td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.875rem; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        
+        /* Status Color Coding */
+        .status-in-progress { background-color: #fef08a; color: #854d0e; font-weight: 700; text-align: center; } /* Yellow */
+        .status-completed { background-color: #bbf7d0; color: #166534; font-weight: 700; text-align: center; }   /* Green */
+        .status-delayed { background-color: #fecaca; color: #991b1b; font-weight: 700; text-align: center; }     /* Red */
+        
+        th { background-color: #0f172a; color: #f8fafc; padding: 16px; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; border: 1px solid #334155; }
+        td { border: 1px solid #e2e8f0; padding: 12px; font-size: 0.85rem; transition: all 0.2s; }
+        tr:hover td:first-child { background-color: #eff6ff; color: #2563eb; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-6 md:p-12">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-10 flex justify-between items-end">
-            <div>
-                <h1 class="text-3xl font-black text-slate-900 tracking-tight">🧪 GEOTECHNICAL TEST MATRIX</h1>
-                <p class="text-slate-500 font-medium italic">NCU Applied Geology Lab - April 2026</p>
+        <header class="mb-12 flex flex-col md:flex-row justify-between items-center border-b border-slate-200 pb-8 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-4xl font-black tracking-tighter text-slate-900">LAB STATUS MATRIX</h1>
+                <p class="text-slate-500 font-medium mt-1">Real-time Soil Mechanics Testing Progress — April 2026</p>
             </div>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Submit Update</a>
+            <div class="flex gap-3">
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSd2tvVkfStkYMn2fDNepvAHrqcZaaYFFUmjQQPzbpr11ll6kw/viewform" target="_blank" 
+                   class="bg-slate-900 hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-slate-200">
+                    Submit Lab Update
+                </a>
+            </div>
         </header>
 
-        <div class="bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200">
+        <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-200">
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse">
                     <thead>
                         <tr>
-                            <th>Sample ID</th>
+                            <th class="text-left w-32">Sample ID</th>
                             <th>Drying Samples</th>
                             <th>Falling Head Test</th>
                             <th>Sieve Analysis Test</th>
                             <th>Water Retention Curve</th>
-                            <th>Notes/Problems</th>
+                            <th class="w-64">Observations / Issues</th>
                         </tr>
                     </thead>
                     <tbody id="matrix-body">
                         <tr>
-                            <td colspan="6" class="text-center py-20 text-slate-400 animate-pulse">Processing laboratory data matrix...</td>
+                            <td colspan="6" class="text-center py-32">
+                                <div class="flex flex-col items-center justify-center space-y-4">
+                                    <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing Laboratory Data...</p>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-6 justify-center md:justify-start">
+            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
+                <div class="w-4 h-4 rounded bg-emerald-200 border border-emerald-400"></div>
+                <span>COMPLETED</span>
+            </div>
+            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
+                <div class="w-4 h-4 rounded bg-yellow-200 border border-yellow-400"></div>
+                <span>IN PROGRESS</span>
+            </div>
+            <div class="flex items-center space-x-2 text-xs font-bold text-slate-500">
+                <div class="w-4 h-4 rounded bg-red-200 border border-red-400"></div>
+                <span>DELAYED / BLOCKED</span>
             </div>
         </div>
     </div>
 
     <script>
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5SRsUBQcGkPLKTnGXeymuHQ0hTvQTUSIw-BY29FdvaLt-XDAnVjUzHJNhRoQCBgu3Wu5ANX6m_rbd/pub?output=csv';
-
         const tasks = ["Drying Samples", "Falling Head Test", "Sieve Analysis Test", "Water Retention Curve"];
 
         function getStatusClass(status) {
-            if (status === 'In Progress') return 'status-in-progress';
-            if (status === 'Completed') return 'status-completed';
-            if (status === 'Delayed') return 'status-delayed';
+            const s = status ? status.trim() : '';
+            if (s === 'In Progress') return 'status-in-progress';
+            if (s === 'Completed') return 'status-completed';
+            if (s === 'Delayed') return 'status-delayed';
             return '';
         }
 
-        Papa.parse(csvUrl, {
-            download: true,
-            header: true,
-            complete: function(results) {
-                const matrix = {};
-                const notes = {};
+        function loadMatrix() {
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    const matrix = {};
+                    const latestNotes = {};
 
-                // Process data: keep only the newest status for each Sample + Task pair
-                results.data.forEach(row => {
-                    const sample = row["Sample Number"];
-                    const task = row["Your Current Task"];
-                    const status = row["Task Status"];
-                    const problem = row["Report Problems"];
+                    // Logic: Process chronologically to ensure 'Completed' overwrites 'In Progress'
+                    results.data.forEach(row => {
+                        const sample = row["Sample Number"];
+                        const task = row["Your Current Task"];
+                        const status = row["Task Status"];
+                        const note = row["Report Problems"];
 
-                    if (sample) {
-                        if (!matrix[sample]) matrix[sample] = {};
-                        matrix[sample][task] = status;
-                        if (problem && problem !== "NaN") notes[sample] = problem;
-                    }
-                });
+                        if (sample && task) {
+                            if (!matrix[sample]) matrix[sample] = {};
+                            
+                            // Status Overwriting Logic
+                            // We only update if it's the first entry OR if the new entry is 'Completed' or 'Delayed'
+                            // This ensures that once a task is green (Completed), it stays green.
+                            const currentStatus = matrix[sample][task];
+                            if (!currentStatus || status === 'Completed' || status === 'Delayed' || currentStatus === 'In Progress') {
+                                matrix[sample][task] = status;
+                            }
 
-                const tbody = document.getElementById('matrix-body');
-                tbody.innerHTML = '';
-
-                // Sort samples naturally (1-0, 1-3, 1-5...)
-                const sortedSamples = Object.keys(matrix).sort();
-
-                sortedSamples.forEach(sample => {
-                    const tr = document.createElement('tr');
-                    
-                    // Column 1: Sample ID
-                    let html = `<td class="font-bold text-slate-700 bg-slate-50">${sample}</td>`;
-                    
-                    // Columns 2-5: Tasks
-                    tasks.forEach(task => {
-                        const status = matrix[sample][task] || '';
-                        html += `<td class="${getStatusClass(status)}">${status}</td>`;
+                            // Always keep the most recent note for that sample
+                            if (note && note.trim() !== "" && note !== "NaN") {
+                                latestNotes[sample] = note;
+                            }
+                        }
                     });
 
-                    // Column 6: Notes
-                    html += `<td class="text-xs text-slate-500 italic">${notes[sample] || '-'}</td>`;
-                    
-                    tr.innerHTML = html;
-                    tbody.appendChild(tr);
-                });
-            }
-        });
+                    const tbody = document.getElementById('matrix-body');
+                    tbody.innerHTML = '';
+
+                    // Natural sorting for Sample IDs (e.g., 1-0 before 1-10)
+                    const sortedSamples = Object.keys(matrix).sort((a, b) => 
+                        a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'})
+                    );
+
+                    if (sortedSamples.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-20 text-slate-400">No laboratory data found.</td></tr>';
+                        return;
+                    }
+
+                    sortedSamples.forEach(sample => {
+                        const tr = document.createElement('tr');
+                        
+                        // ID Column
+                        let rowHtml = `<td class="font-black text-slate-900 bg-slate-50 border-r-2 border-slate-100">${sample}</td>`;
+                        
+                        // Task Columns
+                        tasks.forEach(task => {
+                            const status = matrix[sample][task] || '';
+                            rowHtml += `<td class="${getStatusClass(status)}">${status}</td>`;
+                        });
+
+                        // Notes Column
+                        const noteText = latestNotes[sample] || '';
+                        rowHtml += `<td class="text-[11px] text-slate-500 leading-tight italic bg-slate-50/50">${noteText}</td>`;
+                        
+                        tr.innerHTML = rowHtml;
+                        tbody.appendChild(tr);
+                    });
+                }
+            });
+        }
+
+        // Initial Load
+        loadMatrix();
+        
+        // Auto-refresh data every 2 minutes for real-time monitoring
+        setInterval(loadMatrix, 120000);
     </script>
 </body>
 </html>
