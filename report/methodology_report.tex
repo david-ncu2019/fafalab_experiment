@@ -1,0 +1,492 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Layout & Typography ---
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{newtxtext, newtxmath}
+
+% --- Mathematics ---
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amssymb}
+
+% --- Units ---
+\usepackage{siunitx}
+\sisetup{per-mode=symbol, detect-weight=true, detect-family=true}
+
+% --- Tables & Figures ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+
+% --- Cross-referencing & Bibliography ---
+\usepackage[numbers, sort&compress]{natbib}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage[capitalise, noabbrev]{cleveref}
+
+% -------------------------------------------------------------------------
+\title{%
+  \textbf{Computational Methods for Geotechnical Sieve Analysis}\\[6pt]
+  \large Calculation Approaches and Validity Conditions\\
+  of the GSD Analysis Pipeline (ASTM D6913)
+}
+\author{FAFALAB Research Group}
+\date{June 2026}
+% -------------------------------------------------------------------------
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\bigskip\hrule\bigskip
+
+%% =========================================================================
+\begin{abstract}
+This document describes the computational methods implemented in the
+grain-size distribution (GSD) analysis pipeline for geotechnical sieve
+testing conducted in accordance with \textbf{ASTM D6913}~\citep{astm_d6913}.
+All formulas, interpolation procedures, validity conditions, and screening-level
+estimation methods are presented in full.
+The pipeline consists of two scripts: \texttt{sieve\_analysis\_test.py}, which
+processes raw sieve-mass data and computes geotechnical parameters, and
+\texttt{plot\_stratigraphy.py}, which visualises those parameters as a
+stratigraphic vertical profile.
+Where standard measurement fails due to high fines content (\(>10\%\) passing
+the \#200 sieve), log-linear extrapolation and the Kozeny--Carman
+equation~\citep{kozeny1927, carman1937} are used to provide indicative
+screening estimates that must be confirmed by hydrometer analysis
+\citep{astm_d7928}.
+\end{abstract}
+
+%% =========================================================================
+\section{Introduction}
+
+The primary objective of this document is to provide a transparent, traceable
+account of every mathematical operation performed by the GSD pipeline.
+It is \emph{not} a site-specific results report; those are generated separately
+in \texttt{Site\_N/report/}.
+
+The pipeline follows a two-stage architecture decoupled by JSON:
+\begin{enumerate}
+    \item \textbf{Stage 1 (\texttt{sieve\_analysis\_test.py})}: Reads raw CSV
+          sieve data, computes the cumulative percent-passing curve, interpolates
+          characteristic grain diameters, and exports a GSD plot and a JSON
+          report per sample.
+    \item \textbf{Stage 2 (\texttt{plot\_stratigraphy.py})}: Reads the JSON
+          reports for all samples at a site and generates a two-panel
+          stratigraphic profile of uniformity coefficient and hydraulic
+          conductivity versus depth.
+\end{enumerate}
+
+Governing standards referenced throughout this document:
+\begin{itemize}
+    \item \textbf{ASTM D6913} -- Particle-Size Distribution Using Sieve
+          Analysis~\citep{astm_d6913}
+    \item \textbf{ASTM D7928} -- Particle-Size Distribution Using Hydrometer
+          Analysis~\citep{astm_d7928}
+    \item \textbf{ASTM D2487} -- Unified Soil Classification System
+          (USCS)~\citep{astm_d2487}
+\end{itemize}
+
+%% =========================================================================
+\section{Data Input and Pre-Processing}
+\label{sec:input}
+
+\subsection{Input Format}
+
+Each sample is supplied as a two-column CSV file with columns
+\texttt{Sieve} and \texttt{Sample\_Mass(g)}.  Thirteen sieve designations
+are recognised; their physical opening sizes (the values marked on the
+laboratory sieve frames) are listed in \cref{tab:sieves}.
+
+\begin{table}[H]
+    \centering
+    \caption{Sieve designations and physical opening sizes used in the pipeline.}
+    \label{tab:sieves}
+    \begin{tabular}{lS[table-format=1.3]lS[table-format=1.3]}
+        \toprule
+        Designation & {Opening (\si{\milli\metre})} &
+        Designation & {Opening (\si{\milli\metre})} \\
+        \midrule
+        \#4   & 4.760 & \#100 & 0.149 \\
+        \#10  & 2.000 & \#140 & 0.105 \\
+        \#20  & 0.840 & \#200 & 0.074 \\
+        \#30  & 0.590 & \#400 & 0.037 \\
+        \#40  & 0.420 & Pan   & {---}  \\
+        \#50  & 0.297 & & \\
+        \#60  & 0.250 & & \\
+        \#80  & 0.177 & & \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\noindent
+The Pan row acts as a catch-all; its placeholder size (\SI{0.001}{\milli\metre})
+is used only for mass accounting and is \emph{excluded} from interpolation
+(see \cref{sec:pchip}).
+
+\subsection{Cumulative Percent Passing}
+\label{sec:percent_passing}
+
+Following \citet{astm_d6913}, the data are sorted from coarsest to finest sieve.
+The cumulative mass retained at each sieve $i$ is
+\begin{equation}
+    M_{\mathrm{cum},i} = \sum_{j=1}^{i} m_j
+    \label{eq:cum_retained}
+\end{equation}
+where $m_j$ is the mass retained on sieve $j$ (in grams) and the sum proceeds
+from the coarsest sieve downward.  The percent passing is then
+\begin{equation}
+    P_i = 100 \times \left(1 - \frac{M_{\mathrm{cum},i}}{M_{\mathrm{total}}}\right)
+    \label{eq:percent_passing}
+\end{equation}
+where $M_{\mathrm{total}} = \sum_j m_j$ is the total dry specimen mass
+including the Pan.  This yields a monotonically decreasing sequence
+$P_1 \ge P_2 \ge \cdots \ge P_{13}$ (since the finest sieve always retains
+the remaining fines above the Pan).
+
+%% =========================================================================
+\section{Grain-Size Interpolation via PCHIP}
+\label{sec:pchip}
+
+\subsection{Motivation for Log-Space Interpolation}
+
+Grain-size distribution curves are conventionally plotted on a semi-logarithmic
+axis (particle size on a log scale, percent passing on a linear scale).
+Interpolation performed in log-space therefore respects the shape of the
+curve and avoids the artefacts that linear-space interpolation introduces at
+the coarser end of the distribution.
+
+\subsection{PCHIP Method}
+
+The pipeline uses the \emph{Piecewise Cubic Hermite Interpolating Polynomial}
+(PCHIP) algorithm~\citep{fritsch1980}, which guarantees monotonicity of the
+interpolant between successive data points.  This is an important property
+for grain-size curves: spurious oscillations (overshoot) must be avoided
+because percent-passing values must remain in \([0, 100]\).
+
+Formally, let $\{(P_i,\, d_i)\}$ be the set of measured (percent passing,
+grain diameter) pairs with the Pan excluded.  PCHIP is applied to the
+log-transformed diameters:
+\begin{equation}
+    D_x = 10^{\,\mathrm{PCHIP}\!\left(x,\;\log_{10}(d)\right)}
+    \label{eq:pchip}
+\end{equation}
+where $x$ is the target percentile (e.g.\ $x = 10$ for $D_{10}$) and
+$\mathrm{PCHIP}(\cdot)$ denotes the monotone cubic Hermite interpolant fitted
+to the pairs $\{(P_i,\, \log_{10} d_i)\}$.
+
+\subsection{Validity Conditions}
+
+Interpolation is strictly limited to the measured data range.
+If the target percentile $x$ does not satisfy
+\begin{equation}
+    \min_i(P_i) \;\le\; x \;\le\; \max_i(P_i),
+    \label{eq:validity_range}
+\end{equation}
+the function raises a \texttt{ValueError} and the corresponding $D_x$ value is
+reported as \texttt{null} in the JSON output.  No extrapolation is performed
+within the measured range; when the curve cannot reach a percentile, a
+hydrometer analysis per \citet{astm_d7928} is required to extend the GSD
+curve into the fine-grained (silt and clay) domain.
+
+\subsection{Target Percentiles}
+
+The pipeline computes $D_{10}$, $D_{25}$, $D_{30}$, $D_{50}$, $D_{60}$, and
+$D_{75}$.  $D_{50}$ is used internally for the Kozeny--Carman estimate
+(\cref{sec:kc}) but is not reported in the public JSON output to avoid
+confusion with the directly computed characteristic diameters.
+
+%% =========================================================================
+\section{Measured Geotechnical Coefficients}
+\label{sec:measured}
+
+The following coefficients are computed from the PCHIP-interpolated $D_x$
+values.  Any coefficient whose prerequisite $D_x$ is \texttt{null}
+(i.e.\ outside the measurable range) is itself reported as \texttt{null}.
+
+\subsection{Uniformity Coefficient \texorpdfstring{$C_u$}{Cu}}
+
+\begin{equation}
+    C_u = \frac{D_{60}}{D_{10}}
+    \label{eq:cu}
+\end{equation}
+
+$C_u$ quantifies the spread of the grain-size distribution.  A soil with
+$C_u = 1$ is perfectly uniform (single grain size); larger values indicate
+a broader, better-graded distribution.  Per \citet{astm_d2487}:
+\begin{itemize}
+    \item \emph{Well-graded sand} (SW): $C_u \ge 6$ and $1 \le C_c \le 3$
+    \item \emph{Well-graded gravel} (GW): $C_u \ge 4$ and $1 \le C_c \le 3$
+\end{itemize}
+
+\subsection{Coefficient of Curvature \texorpdfstring{$C_c$}{Cc}}
+
+\begin{equation}
+    C_c = \frac{(D_{30})^2}{D_{60} \cdot D_{10}}
+    \label{eq:cc}
+\end{equation}
+
+$C_c$ describes the shape of the central portion of the GSD curve.  The
+USCS well-graded criterion requires $1 \le C_c \le 3$ in conjunction with
+the $C_u$ threshold stated above \citep{astm_d2487}.
+
+\subsection{Trask Sorting Coefficient \texorpdfstring{$S_0$}{S0}}
+
+\begin{equation}
+    S_0 = \sqrt{\frac{D_{75}}{D_{25}}}
+    \label{eq:s0}
+\end{equation}
+
+The Trask sorting coefficient~\citep{trask1932} is a statistical measure of
+grain-size dispersion based on the geometric quartile deviation.  Interpretation
+guidelines are summarised in \cref{tab:s0}.
+
+\begin{table}[H]
+    \centering
+    \caption{Trask sorting coefficient interpretation \citep{trask1932}.}
+    \label{tab:s0}
+    \begin{tabular}{ll}
+        \toprule
+        $S_0$ range & Classification \\
+        \midrule
+        $< 2.5$     & Well-sorted (uniform grains) \\
+        $\approx 3$ & Normally sorted \\
+        $> 4.5$     & Poorly sorted (wide grain-size range) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Hazen Hydraulic Conductivity \texorpdfstring{$K_{\mathrm{Hazen}}$}{K\_Hazen}}
+\label{sec:hazen}
+
+The empirical Hazen formula~\citep{hazen1911} relates hydraulic conductivity
+to the effective size $D_{10}$:
+\begin{equation}
+    K_{\mathrm{Hazen}} = (D_{10})^2 \quad [\si{\centi\metre\per\second}]
+    \label{eq:hazen}
+\end{equation}
+where the Hazen constant $C = 1.0$ is assumed (appropriate for medium, clean
+sands).  The formula is applied only when \emph{all} of the following
+conditions are satisfied:
+\begin{enumerate}
+    \item $D_{10}$ is within the measurable sieve range (not \texttt{null}),
+    \item $\SI{0.1}{\milli\metre} \le D_{10} \le \SI{3.0}{\milli\metre}$
+          (effective-size validity window),
+    \item $C_u < 5$ (uniform-sand criterion for the Hazen approximation).
+\end{enumerate}
+If any condition is unmet, $K_{\mathrm{Hazen}}$ is reported as \texttt{null}
+and the Kozeny--Carman estimate in \cref{sec:kc} serves as a supplementary
+indicator.
+
+%% =========================================================================
+\section{Estimated Parameters for High-Fines Samples}
+\label{sec:estimated}
+
+\subsection{Problem Statement}
+
+When more than approximately 10\% of the sample passes the \#200 sieve
+(\SI{0.074}{\milli\metre}), the effective grain diameter $D_{10}$ falls below
+the measurable range of dry sieve analysis.  Consequently, $C_u$, $C_c$, and
+$K_{\mathrm{Hazen}}$ cannot be computed from measurements alone.
+
+ASTM D2487 acknowledges this limitation and permits extrapolation for the
+purpose of obtaining $D_{10}$~\citep{astm_d2487}; however, any extrapolated
+value is indicative only and must be confirmed by hydrometer analysis
+\citep{astm_d7928}.
+
+\subsection{Log-Linear \texorpdfstring{$D_{10}$}{D10} Extrapolation}
+\label{sec:d10est}
+
+When $D_{10}$ is \texttt{null}, the pipeline extrapolates using the three sieve
+points with the lowest percent-passing values (i.e.\ the three finest physical
+sieves with measurable mass).  In log-diameter versus percent-passing space,
+these points are approximated by a straight line:
+\begin{align}
+    \log_{10}(d_j) &= m \cdot p_j + b, \quad j = 1, 2, 3
+    \label{eq:linreg} \\
+    D_{10,\mathrm{est}} &= 10^{\,m \cdot 10 + b}
+    \label{eq:d10est}
+\end{align}
+where $(m, b)$ are the least-squares slope and intercept obtained from
+\texttt{numpy.polyfit} applied to the three (percent-passing, log-diameter)
+pairs.
+
+A validity guard is applied: the extrapolated value is accepted only if
+\begin{equation}
+    \SI{0.001}{\milli\metre} < D_{10,\mathrm{est}} < \SI{0.074}{\milli\metre}
+    \label{eq:d10est_validity}
+\end{equation}
+ensuring the estimate lies within the silt range (below the \#200 sieve but
+above the Pan placeholder size).  If the guard fails, $D_{10,\mathrm{est}}$
+is reported as \texttt{null}.
+
+\subsection{Estimated \texorpdfstring{$C_{u,\mathrm{est}}$}{Cu\_est} and
+            \texorpdfstring{$C_{c,\mathrm{est}}$}{Cc\_est}}
+
+Given a valid $D_{10,\mathrm{est}}$, the measured $D_{30}$ and $D_{60}$
+(which are typically available for samples with moderate-to-high fines) are
+substituted into the standard formulas:
+\begin{equation}
+    C_{u,\mathrm{est}} = \frac{D_{60}}{D_{10,\mathrm{est}}}
+    \label{eq:cu_est}
+\end{equation}
+\begin{equation}
+    C_{c,\mathrm{est}} = \frac{(D_{30})^2}{D_{60} \cdot D_{10,\mathrm{est}}}
+    \label{eq:cc_est}
+\end{equation}
+These values are labelled \enquote*{Estimated (indicative only)} in both the
+JSON output and the GSD plot, and carry a warning directing the user to
+confirm with ASTM D7928.
+
+\subsection{Kozeny--Carman Hydraulic Conductivity \texorpdfstring{$K_{\mathrm{KC}}$}{K\_KC}}
+\label{sec:kc}
+
+For samples where $D_{50}$ is within the measurable range (i.e.\ less than
+50\% fines), the Kozeny--Carman equation~\citep{kozeny1927, carman1937}
+provides a physics-based estimate of hydraulic conductivity:
+\begin{equation}
+    K_{\mathrm{KC}}(n) =
+    \frac{g}{\nu}
+    \cdot \frac{D_{50,\mathrm{m}}^{2}}{180}
+    \cdot \frac{n^3}{(1-n)^2}
+    \times 100
+    \quad [\si{\centi\metre\per\second}]
+    \label{eq:kc}
+\end{equation}
+where:
+\begin{itemize}
+    \item $g = \SI{9.81}{\metre\per\second\squared}$ -- gravitational acceleration,
+    \item $\nu = \SI{1e-6}{\metre\squared\per\second}$ -- kinematic viscosity of
+          water at \SI{20}{\degreeCelsius},
+    \item $D_{50,\mathrm{m}} = D_{50} \times 10^{-3}$ -- median grain diameter
+          converted from \si{\milli\metre} to \si{\metre},
+    \item $n$ -- porosity (dimensionless).
+\end{itemize}
+
+Natural sandy soils typically exhibit porosities in the range
+$n \in [0.25, 0.50]$~\citep{astm_d2487}.  The pipeline uses the narrower
+range $n \in [0.40, 0.45]$ representative of loose-to-medium dense sands,
+and reports two bounding estimates:
+\begin{align}
+    K_{\mathrm{KC,low}}  &= K_{\mathrm{KC}}(n = 0.40)
+    \label{eq:kc_low} \\
+    K_{\mathrm{KC,high}} &= K_{\mathrm{KC}}(n = 0.45)
+    \label{eq:kc_high}
+\end{align}
+This bracketing approach communicates the sensitivity of the estimate to
+porosity uncertainty without requiring a direct measurement of void ratio.
+
+%% =========================================================================
+\section{Stratigraphic Profile Computation}
+\label{sec:stratigraphy}
+
+The script \texttt{plot\_stratigraphy.py} reads all Site~1 JSON reports and
+assembles a two-panel stratigraphic profile.
+
+\subsection{Depth Convention}
+
+Sample names follow the convention \texttt{Sample\_1-\textit{H}}, where
+$H$ is the height in metres above the base of the \SI{10}{\metre} excavation
+pit.  The depth is extracted by parsing the integer suffix:
+\[
+    H = \mathrm{int}\!\left(\texttt{sample\_name.split(`-')[-1]}\right)
+\]
+Thus $H = 0$ corresponds to the deepest (basal) layer and $H = 10$ to the
+surface layer.
+
+\subsection{Most-Permeable Layer Identification}
+
+To highlight the stratigraphic horizon of greatest hydraulic interest, the
+script identifies the layer with the maximum measured $K_{\mathrm{Hazen}}$:
+\begin{equation}
+    i^{*} = \operatorname*{arg\,max}_{i} \; K_{\mathrm{Hazen},i}
+    \label{eq:anomaly}
+\end{equation}
+This layer is annotated on both panels of the profile as
+\enquote*{Most Permeable Layer}.  Note that samples with \texttt{null}
+$K_{\mathrm{Hazen}}$ (high-fines samples) are excluded from the
+$\operatorname{arg\,max}$ operation via \texttt{numpy.nanargmax}.
+
+\subsection{Plot Layout}
+
+The output figure contains two subplots sharing the same $y$-axis (height
+above pit base):
+\begin{itemize}
+    \item \textbf{Left panel}: $C_u$ on a linear scale.
+    \item \textbf{Right panel}: $K_{\mathrm{Hazen}}$ on a base-10 logarithmic
+          scale (\si{\centi\metre\per\second}).
+\end{itemize}
+The $y$-axis is not inverted; $H = 0$ is at the bottom and $H = 10$ is at
+the top, matching the physical orientation of the pit.
+
+%% =========================================================================
+\section{Summary of Formulas and Validity Conditions}
+\label{sec:summary}
+
+\cref{tab:summary} consolidates all formulas, their equation numbers, and the
+conditions under which each quantity is computable.
+
+\begin{table}[H]
+    \centering
+    \caption{Summary of all formulas, references, and validity conditions.}
+    \label{tab:summary}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{\linewidth}{l l l X}
+        \toprule
+        Parameter & Formula & Ref. & Validity / Notes \\
+        \midrule
+        $P_i$ (percent passing)
+            & \eqref{eq:percent_passing}
+            & \citep{astm_d6913}
+            & Always computable \\
+        $D_x$ (grain diameter)
+            & \eqref{eq:pchip}
+            & \citep{fritsch1980}
+            & $\min(P) \le x \le \max(P)$; Pan excluded \\
+        $C_u$ (uniformity)
+            & \eqref{eq:cu}
+            & \citep{astm_d2487}
+            & Requires $D_{10}$, $D_{60}$ \\
+        $C_c$ (curvature)
+            & \eqref{eq:cc}
+            & \citep{astm_d2487}
+            & Requires $D_{10}$, $D_{30}$, $D_{60}$ \\
+        $S_0$ (Trask sorting)
+            & \eqref{eq:s0}
+            & \citep{trask1932}
+            & Requires $D_{25}$, $D_{75}$ \\
+        $K_{\mathrm{Hazen}}$
+            & \eqref{eq:hazen}
+            & \citep{hazen1911}
+            & $D_{10}$ available; \SIrange{0.1}{3.0}{\milli\metre}; $C_u < 5$ \\
+        $D_{10,\mathrm{est}}$
+            & \eqref{eq:d10est}
+            & \citep{astm_d2487}
+            & $D_{10}$ = null; result in \SIrange{0.001}{0.074}{\milli\metre} \\
+        $C_{u,\mathrm{est}}$
+            & \eqref{eq:cu_est}
+            & ---
+            & $D_{10,\mathrm{est}}$ valid; confirm with \citet{astm_d7928} \\
+        $C_{c,\mathrm{est}}$
+            & \eqref{eq:cc_est}
+            & ---
+            & $D_{10,\mathrm{est}}$ valid; confirm with \citet{astm_d7928} \\
+        $K_{\mathrm{KC}}$ (low/high)
+            & \eqref{eq:kc}
+            & \citep{kozeny1927, carman1937}
+            & $D_{50}$ available; $n = 0.40$--$0.45$; indicative only \\
+        $i^{*}$ (most permeable)
+            & \eqref{eq:anomaly}
+            & ---
+            & NaN-safe \texttt{nanargmax} over $K_{\mathrm{Hazen}}$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+%% =========================================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
