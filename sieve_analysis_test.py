@@ -268,9 +268,9 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution", estimated=N
             "(!) Extrapolated -- confirm with ASTM D7928"
         )
         ax.text(
-            0.02, 0.97, est_text,
+            0.98, 0.97, est_text,
             transform=ax.transAxes, fontsize=10,
-            verticalalignment="top",
+            verticalalignment="top", horizontalalignment="right",
             bbox=dict(boxstyle="round,pad=0.4", fc="lightyellow",
                       ec="darkorange", alpha=0.85, linestyle="--"),
             zorder=11
