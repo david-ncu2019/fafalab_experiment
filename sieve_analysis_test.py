@@ -37,22 +37,21 @@ plt.rcParams.update(
 # In[3]:
 
 
-# Standard Sieve Diameters (mm) per ASTM E11
+# Standard Sieve Diameters (mm) — actual opening sizes on physical sieves
 SIEVE_DIAMETERS = {
-    "#4": 4.750,
-    "#10": 2.000,
-    "#20": 0.850,
-    "#30": 0.600,
-    "#40": 0.425,
-    "#50": 0.300,
-    "#60": 0.250,
-    "#80": 0.180,
-    "#100": 0.150,
-    "#140": 0.106,
-    "#200": 0.075,
-    "#270": 0.053,
-    "#400": 0.038,
-    "Pan": 0.001,  # Pan placeholder for display; excluded from interpolation
+    "#4":   4.76,
+    "#10":  2.0,
+    "#20":  0.84,
+    "#30":  0.59,
+    "#40":  0.42,
+    "#50":  0.297,
+    "#60":  0.25,
+    "#80":  0.177,
+    "#100": 0.149,
+    "#140": 0.105,
+    "#200": 0.074,
+    "#400": 0.037,
+    "Pan":  0.001,  # Pan placeholder for display; excluded from interpolation
 }
 
 
