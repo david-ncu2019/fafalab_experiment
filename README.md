@@ -31,16 +31,16 @@ pip install numpy pandas matplotlib scipy
 
 ### Single-sample / batch analysis
 
-Open `sieve_analysis_test.py` and set `mainfolder` near the bottom of the file to the target site directory:
+Open `scripts/sieve_analysis_test.py` and set `mainfolder` near the bottom of the file to the target site directory:
 
 ```python
 mainfolder = r"path\to\Site_1"   # change to Site_8, etc.
 ```
 
-Then run:
+Then run **from the repo root**:
 
 ```bash
-python sieve_analysis_test.py
+python scripts/sieve_analysis_test.py
 ```
 
 The script processes **all CSV files** found in `mainfolder` in alphabetical order, writing a GSD plot and a JSON report for each sample into auto-created sub-directories:
@@ -55,10 +55,10 @@ Site_N/json_report/<sample_name>.json
 After all Site 1 samples have been processed, generate a two-panel Cu and K vs. depth profile:
 
 ```bash
-python plot_stratigraphy.py
+python scripts/plot_stratigraphy.py
 ```
 
-Output: `Site_1_Stratigraphy.png` in the project root.
+Output: `outputs/Site_1_Stratigraphy.png`.
 
 ---
 
@@ -68,16 +68,16 @@ Output: `Site_1_Stratigraphy.png` in the project root.
 Site_N/*.csv  (raw sieve masses)
       |
       v
-sieve_analysis_test.py
+scripts/sieve_analysis_test.py
       |
       +---> Site_N/figs/<sample>_gsd.png      (semi-log GSD plot, A4 landscape)
       +---> Site_N/json_report/<sample>.json  (D-values, coefficients, estimates)
       |
       v
-plot_stratigraphy.py  (reads Site_1/json_report/*.json)
+scripts/plot_stratigraphy.py  (reads Site_1/json_report/*.json)
       |
       v
-Site_1_Stratigraphy.png  (Cu and K_Hazen vs. height above pit base)
+outputs/Site_1_Stratigraphy.png  (Cu and K_Hazen vs. height above pit base)
 ```
 
 The two stages are fully decoupled through the JSON files. The stratigraphy script reads only from `Site_1/json_report/`.
@@ -125,7 +125,7 @@ Supported sieve designations and their opening sizes:
 
 All 13 rows are expected. The Pan row is required for total-mass calculation but is excluded from PCHIP interpolation.
 
-> **Note:** `example_analysis.csv` in the project root has a different schema (includes a pre-computed `Cumulative_Distribution(%)` column). It is a reference file only and is not a valid input to the scripts.
+> **Note:** `reference/example_analysis.csv` has a different schema (includes a pre-computed `Cumulative_Distribution(%)` column). It is a reference file only and is not a valid input to the scripts.
 
 ---
 
@@ -197,27 +197,40 @@ The Hazen formula is intentionally strict: samples with fine fractions (Cu ≥ 5
 
 ```
 2026_Sieve_Analysis_Test/
+├── scripts/                  # Python source
+│   ├── sieve_analysis_test.py
+│   └── plot_stratigraphy.py
+├── docs/                     # Reference documents and blank form
+│   ├── sieve_analysis_guide.md
+│   ├── sample_taken_method.md
+│   └── 20260421_new_test_record_form.xlsx
+├── reference/                # Reference / example data files
+│   ├── example_analysis.csv
+│   └── sieve_information.csv
+├── photos/                   # Field photos
+│   ├── site_4_drying_samples.jpg
+│   └── site_4_drying_samples_2.jpg
+├── outputs/                  # Top-level generated outputs
+│   └── Site_1_Stratigraphy.png
 ├── Site_1/                   # 7 samples — GSD plots and JSON reports generated
 │   ├── Sample_1-0.csv        # Depth naming: height above pit base (m)
-│   ├── Sample_1-3.csv
 │   ├── ...
 │   ├── Sample_1-10.csv
+│   ├── raw_data/             # Excel source files
 │   ├── figs/                 # Generated GSD PNGs
-│   └── json_report/          # Generated JSON reports
-├── Site_8/                   # 5 samples — GSD plots and JSON reports generated
-│   ├── Sample_8-1-2.csv      # Depth naming: depth interval (m)
-│   ├── Sample_8-3-4.csv
-│   └── ...
-├── sieve_analysis_test.py
-├── plot_stratigraphy.py
-├── sieve_analysis_guide.md
-├── sample_taken_method.md
-└── 20260421_new_test_record_form.xlsx
+│   ├── json_report/          # Generated JSON reports
+│   └── report/               # LaTeX/PDF/MD reports
+└── Site_8/                   # 5 samples — GSD plots and JSON reports generated
+    ├── Sample_8-1-2.csv      # Depth naming: depth interval (m)
+    ├── ...
+    ├── raw_data/             # Excel source files
+    ├── figs/                 # Generated GSD PNGs
+    └── json_report/          # Generated JSON reports
 ```
 
 **Site 1** depth naming convention: `Sample_1-<H>` where H is the height in metres above the pit base (0 = base, 10 = surface). **Site 8** uses depth-interval naming: `Sample_8-<top>-<bottom>`.
 
-To process Site 8, set `mainfolder` to the Site 8 path and create the output sub-directories manually or let the script create them on first run.
+To process a different site, set `mainfolder` in `scripts/sieve_analysis_test.py` to the target site path. Output sub-directories (`figs/`, `json_report/`) are created automatically on first run.
 
 ---
 

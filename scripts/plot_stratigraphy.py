@@ -67,5 +67,7 @@ if anomaly_depth is not None:
 
 plt.suptitle('Site 1: Stratigraphic Geotechnical Assessment', fontsize=16, fontweight='bold', y=0.95)
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.savefig('Site_1_Stratigraphy.png', dpi=300)
-print("Saved Site_1_Stratigraphy.png")
+import os
+os.makedirs('outputs', exist_ok=True)
+plt.savefig('outputs/Site_1_Stratigraphy.png', dpi=300)
+print("Saved outputs/Site_1_Stratigraphy.png")

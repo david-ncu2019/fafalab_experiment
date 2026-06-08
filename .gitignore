@@ -19,6 +19,13 @@ __pycache__/
 *.fls
 *.fdb_latexmk
 
+# Jupyter
+.ipynb_checkpoints/
+
+# Stray root-level outputs (canonical copies live in site subdirs)
+Sample_*_gsd.png
+Sample_*_results.json
+
 # macOS
 .DS_Store
 
