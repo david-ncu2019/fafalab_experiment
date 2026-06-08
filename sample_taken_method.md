@@ -1,0 +1,3 @@
+# How were the samples taken?
+
+An excavator excavated a 10-meter-deep pit from the ground surface. Soil samples were systematically collected from the exposed stratigraphic wall using manual shovel insertion. The sampling nomenclature employs a depth-based system measured from the pit base: sample 1-0 represents the basal position, sample 1-10 represents the surface position (10 m above base), and intermediate samples 1, 2, 3, 4, and 5 correspond to 1, 2, 3, 4, and 5 meters above the base, respectively.
