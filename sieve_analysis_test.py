@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import warnings
 import os
 import json
@@ -16,25 +13,17 @@ from scipy.interpolate import PchipInterpolator
 warnings.filterwarnings("ignore")
 
 
-# In[2]:
-
-
-# 1. Clear existing font settings to avoid search loops
+# Publication-quality settings with explicit font fallback
 plt.rcParams.update(plt.rcParamsDefault)
-
-# 2. Publication-quality settings with explicit font fallback
 plt.rcParams.update(
     {
         "font.family": "sans-serif",
         "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica", "sans-serif"],
-        "mathtext.fontset": "dejavusans",  # Forces math symbols to use DejaVu Sans
-        "figure.dpi": 300,  # High resolution for journals
-        "axes.unicode_minus": False,  # Fixes potential minus sign issues
+        "mathtext.fontset": "dejavusans",
+        "figure.dpi": 300,
+        "axes.unicode_minus": False,
     }
 )
-
-
-# In[3]:
 
 
 # Standard Sieve Diameters (mm) — actual opening sizes on physical sieves
@@ -57,21 +46,11 @@ SIEVE_DIAMETERS = {
 
 def calculate_percent_passing(df):
     """Calculates cumulative distributions based on ASTM D6913."""
-    # Map Sieve names to diameters
     df["Size_mm"] = df["Sieve"].map(SIEVE_DIAMETERS)
-    
-    # ASTM D6913 requires sorting from Coarsest to Finest
     df = df.sort_values("Size_mm", ascending=False).reset_index(drop=True)
-
     total_mass = df["Sample_Mass(g)"].sum()
-    
-    # Cumulative Mass Retained (Sum from the top sieve down)
     df["Cum_Retained"] = df["Sample_Mass(g)"].cumsum()
-    
-    # Percent Passing (Percentage of material finer than the sieve opening)
-    # PP = 100 * (Total Mass - Cumulative Mass Retained) / Total Mass
     df["Percent_Passing"] = 100 * (1 - df["Cum_Retained"] / total_mass)
-    
     return df, total_mass
 
 
@@ -86,7 +65,6 @@ def get_Dx(target, sizes, passing):
     phys_sizes = sizes[mask]
     phys_passing = passing[mask]
 
-    # Check if target is within the measured range
     min_pass = phys_passing.min()
     max_pass = phys_passing.max()
 
@@ -109,33 +87,27 @@ def get_Dx(target, sizes, passing):
 
 
 def get_geotechnical_parameters(df):
-    """Calculates D-values and standard coefficients (Cu, Cc, S0)."""
+    """Calculates D-values and standard coefficients (Cu, Cc, S0, K_hazen)."""
     sizes = df["Size_mm"].values
     passing = df["Percent_Passing"].values
 
-    # Define targets. D10 is included if data allows (e.g., with #400 sieve)
-    targets = [10, 25, 30, 60, 75]
+    targets = [10, 25, 30, 50, 60, 75]  # D50 included for Kozeny-Carman estimation
     results = {}
 
     for t in targets:
         try:
             results[f"D{t}"] = get_Dx(t, sizes, passing)
         except ValueError:
-            results[f"D{t}"] = np.nan  # If target is outside interpolated range
+            results[f"D{t}"] = np.nan
 
-    # Calculate Coefficients
     d10, d25, d30, d60, d75 = (
-        results["D10"],
-        results["D25"],
-        results["D30"],
-        results["D60"],
-        results["D75"],
+        results["D10"], results["D25"], results["D30"],
+        results["D60"], results["D75"],
     )
 
-    # Calculate Cu first for Hazen validity check
     cu_val = d60 / d10 if not np.isnan(d10) else np.nan
 
-    # Hazen formula only valid for: 0.1 ≤ D10 ≤ 3.0 mm AND Cu < 5
+    # Hazen formula only valid for: 0.1 <= D10 <= 3.0 mm AND Cu < 5
     hazen_valid = (
         not np.isnan(d10)
         and 0.1 <= d10 <= 3.0
@@ -147,8 +119,8 @@ def get_geotechnical_parameters(df):
     coeffs = {
         "Cu": cu_val,
         "Cc": (
-            (d30**2) / (d60 * d10)
-            if not (np.isnan(d10) or np.isnan(d30))
+            (d30 ** 2) / (d60 * d10)
+            if not (np.isnan(d10) or np.isnan(d30) or np.isnan(d60))
             else np.nan
         ),
         "S0": (
@@ -156,17 +128,68 @@ def get_geotechnical_parameters(df):
             if not (np.isnan(d75) or np.isnan(d25))
             else np.nan
         ),
-        "K_hazen_cms": (d10**2) if hazen_valid else np.nan,
+        "K_hazen_cms": (d10 ** 2) if hazen_valid else np.nan,
     }
-    return results, coeffs
+
+    estimated = _estimate_params(df, results)
+    return results, coeffs, estimated
 
 
-def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution"):
-    """Generates a publication-quality semi-log plot."""
-    fig = plt.figure(figsize=(11.7, 8.3))  # A4 size
+def _estimate_params(df, results):
+    """Educated estimates for Cu, Cc, K when D10 is unmeasurable by sieve.
+
+    D10_est: log-linear extrapolation from 3 finest physical sieve points.
+    K_KC_est: Kozeny-Carman using D50, porosity n=0.40-0.45.
+    Results are indicative only. Confirm with ASTM D7928 hydrometer.
+    """
+    est = {k: np.nan for k in ["D10_est", "Cu_est", "Cc_est",
+                                "K_KC_low_cms", "K_KC_high_cms"]}
+    sizes   = df["Size_mm"].values
+    passing = df["Percent_Passing"].values
+
+    # D10 log-linear extrapolation (only when D10 was not measurable by sieve)
+    if np.isnan(results["D10"]):
+        mask = sizes > 0.001  # exclude Pan
+        phys_s = sizes[mask]
+        phys_p = passing[mask]
+        sort_idx = np.argsort(phys_p)
+        finest_s = phys_s[sort_idx[:3]]
+        finest_p = phys_p[sort_idx[:3]]
+        m, b = np.polyfit(finest_p, np.log10(finest_s), 1)
+        d10_est = 10 ** (m * 10 + b)
+        # Validity guard: must lie in silt range (below #200 sieve, above 0.001 mm)
+        if 0.001 < d10_est < 0.074:
+            est["D10_est"] = d10_est
+            d60, d30 = results["D60"], results["D30"]
+            if not np.isnan(d60):
+                est["Cu_est"] = d60 / d10_est
+            if not np.isnan(d30) and not np.isnan(d60):
+                est["Cc_est"] = (d30 ** 2) / (d60 * d10_est)
+
+    # Kozeny-Carman K using D50 (D50 is measurable for samples with <50% fines)
+    d50 = results.get("D50", np.nan)
+    if not np.isnan(d50):
+        d50_m = d50 * 1e-3       # mm -> m
+        g, nu = 9.81, 1e-6       # m/s^2, m^2/s at 20 C
+
+        def kc(n):
+            return (g / nu) * (d50_m ** 2 / 180) * (n ** 3 / (1 - n) ** 2) * 100  # cm/s
+
+        est["K_KC_low_cms"]  = kc(0.40)
+        est["K_KC_high_cms"] = kc(0.45)
+
+    return est
+
+
+_nan_to_none = lambda v: float(v) if not np.isnan(v) else None
+
+
+def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution", estimated=None):
+    """Generates a publication-quality semi-log GSD plot."""
+    fig = plt.figure(figsize=(11.7, 8.3))  # A4 landscape
     ax = fig.add_subplot(111)
 
-    # Generate smooth PCHIP curve
+    # Smooth PCHIP curve
     p_smooth = np.linspace(
         df["Percent_Passing"].min(), df["Percent_Passing"].max(), 500
     )
@@ -174,172 +197,166 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution"):
     full_pchip = PchipInterpolator(u_p, np.log10(df["Size_mm"].values[u_idx]))
     s_smooth = 10 ** full_pchip(p_smooth)
 
-    # Plotting
-    ax.semilogx(
-        s_smooth,
-        p_smooth,
-        color="red",
-        linewidth=2,
-        ls="dotted",
-        label="PCHIP Interpolation",
-        zorder=3
-    )
-    
-    # Plotting Measured Data as Scatter Points
-    ax.scatter(
-        df["Size_mm"],
-        df["Percent_Passing"],
-        color="navy",
-        edgecolor="black",
-        s=100,  # Increased size for visibility
-        label="Measured Data",
-        zorder=5,  # Ensure points are above the line
-    )
+    ax.semilogx(s_smooth, p_smooth, color="red", linewidth=2, ls="dotted",
+                label="PCHIP Interpolation", zorder=3)
+    ax.scatter(df["Size_mm"], df["Percent_Passing"],
+               color="navy", edgecolor="black", s=100,
+               label="Measured Data", zorder=5)
 
-    # Labeling Dx values with arrows (Positioned on the Left)
+    # Annotate Dx values
     for label, val in dx_values.items():
+        if label == "D50":
+            continue  # D50 is internal; don't clutter the plot
         if np.isnan(val):
             continue
         percent = int(label[1:])
-        
-        # Plot a point at the Dx location for reference
         ax.plot(val, percent, "gD", markersize=8, zorder=6)
-        
-        # Use annotate with arrowprops (Label on Left, Arrow from Right edge)
         ax.annotate(
             f"{label}={val:.3f} mm",
             xy=(val, percent),
-            xytext=(val * 0.1, percent + 5),  # Moves label to the left
+            xytext=(val * 0.1, percent + 5),
             textcoords="data",
-            ha='right',                      # Anchors the right side of the box
-            va='center',
-            fontsize=11,
-            fontweight="bold",
+            ha="right", va="center",
+            fontsize=11, fontweight="bold",
             arrowprops=dict(
                 arrowstyle="->",
-                connectionstyle="arc3,rad=-0.2", # Flipped rad for left-to-right curve
-                color="darkgreen",
-                lw=1.5,
-                ls=":"
+                connectionstyle="arc3,rad=-0.2",
+                color="darkgreen", lw=1.5, ls=":"
             ),
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="darkgreen", alpha=0.9),
             zorder=10
         )
 
-    # Add Coefficients Box at the Top-Left corner
-    cu_str = f"{coeffs['Cu']:.2f}" if not np.isnan(coeffs['Cu']) else "N/A (hydrometer required)"
-    cc_str = f"{coeffs['Cc']:.2f}" if not np.isnan(coeffs['Cc']) else "N/A (hydrometer required)"
-    s0_str = f"{coeffs['S0']:.2f}" if not np.isnan(coeffs['S0']) else "N/A"
-    k_str = f"{coeffs['K_hazen_cms']:.2e}" if not np.isnan(coeffs['K_hazen_cms']) else "N/A (criteria unmet)"
+    # --- Measured parameters box (bottom-left) ---
+    cu_str = f"{coeffs['Cu']:.2f}" if not np.isnan(coeffs["Cu"]) else "N/A (hydrometer required)"
+    cc_str = f"{coeffs['Cc']:.2f}" if not np.isnan(coeffs["Cc"]) else "N/A (hydrometer required)"
+    s0_str = f"{coeffs['S0']:.2f}" if not np.isnan(coeffs["S0"]) else "N/A"
+    k_str  = f"{coeffs['K_hazen_cms']:.2e}" if not np.isnan(coeffs["K_hazen_cms"]) else "N/A (criteria unmet)"
 
     coeff_text = (
-        f"Geotechnical Parameters:\n"
+        "Geotechnical Parameters:\n"
         f"$C_u$: {cu_str}\n"
         f"$C_c$: {cc_str}\n"
         f"$S_0$: {s0_str}\n"
         f"$K_{{Hazen}}$: {k_str} cm/s"
     )
     ax.text(
-        0.02, 0.97,
-        coeff_text,
-        transform=ax.transAxes,
-        fontsize=12,
-        fontweight="bold",
-        verticalalignment="top",
+        0.02, 0.03, coeff_text,
+        transform=ax.transAxes, fontsize=12, fontweight="bold",
+        verticalalignment="bottom",
         bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black", alpha=0.8),
         zorder=11
     )
 
-    ax.set_xlim(10, 0.001)  # Invert: coarse (left) to fine (right), per geotechnical convention
+    # --- Estimated parameters box (top-left, dashed orange) ---
+    if estimated is not None:
+        cu_e = estimated.get("Cu_est", np.nan)
+        cc_e = estimated.get("Cc_est", np.nan)
+        k_lo = estimated.get("K_KC_low_cms", np.nan)
+        k_hi = estimated.get("K_KC_high_cms", np.nan)
+
+        cu_e_str = f"{cu_e:.1f}" if not np.isnan(cu_e) else "-"
+        cc_e_str = f"{cc_e:.2f}" if not np.isnan(cc_e) else "-"
+        k_e_str  = (f"{k_lo:.1e} - {k_hi:.1e}"
+                    if not (np.isnan(k_lo) or np.isnan(k_hi)) else "-")
+
+        est_text = (
+            "Estimated (indicative only):\n"
+            f"$C_u$ (est): {cu_e_str}\n"
+            f"$C_c$ (est): {cc_e_str}\n"
+            f"$K_{{KC}}$ (est): {k_e_str} cm/s\n"
+            "(!) Extrapolated -- confirm with ASTM D7928"
+        )
+        ax.text(
+            0.02, 0.97, est_text,
+            transform=ax.transAxes, fontsize=10,
+            verticalalignment="top",
+            bbox=dict(boxstyle="round,pad=0.4", fc="lightyellow",
+                      ec="darkorange", alpha=0.85, linestyle="--"),
+            zorder=11
+        )
+
+    ax.set_xlim(10, 0.001)  # coarse (left) -> fine (right), geotechnical convention
     ax.grid(True, which="both", ls="-", alpha=0.5)
     ax.set_title(title, fontsize=18, pad=20)
     ax.set_xlabel("Particle Size (mm)", fontsize=16)
     ax.set_ylabel("Percent Passing (%)", fontsize=16)
     ax.tick_params(axis="both", labelsize=14)
-    # ax.legend(fontsize=14, loc="upper left") # Removed legend
 
     plt.tight_layout()
     return fig
 
 
-def export_results_to_json(sample_name, dx_values, coeffs, output_path=None):
+def export_results_to_json(sample_name, dx_values, coeffs, output_path=None, estimated=None):
     """Exports geotechnical results to a JSON file."""
-    # Convert NumPy values to standard Python floats for JSON serialization
+    # Exclude D50 from the public D_Values block (internal use only)
+    d_values_public = {k: _nan_to_none(v) for k, v in dx_values.items() if k != "D50"}
+
     results = {
         "Sample_Name": sample_name,
-        "D_Values_mm": {k: float(v) if not np.isnan(v) else None for k, v in dx_values.items()},
-        "Coefficients": {k: float(v) if not np.isnan(v) else None for k, v in coeffs.items()},
+        "D_Values_mm": d_values_public,
+        "Coefficients": {k: _nan_to_none(v) for k, v in coeffs.items()},
+        "Estimated_Coefficients": {
+            "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
+            "D10_est_mm":    _nan_to_none(estimated.get("D10_est",       np.nan)),
+            "Cu_est":        _nan_to_none(estimated.get("Cu_est",        np.nan)),
+            "Cc_est":        _nan_to_none(estimated.get("Cc_est",        np.nan)),
+            "K_KC_low_cms":  _nan_to_none(estimated.get("K_KC_low_cms",  np.nan)),
+            "K_KC_high_cms": _nan_to_none(estimated.get("K_KC_high_cms", np.nan)),
+        } if estimated is not None else None,
     }
-    
+
     if output_path is None:
         output_path = f"{sample_name}_results.json"
-        
+
     with open(output_path, "w") as f:
         json.dump(results, f, indent=4)
-    
+
     return output_path
 
 
-# # 1. Analysis Without #400 Sieve (Excludes $D_{10}$)
-# This program is designed for your standard sieve set where the fine content (Pan) exceeds 10%, making $D_{10}$ impossible to determine without a hydrometer test.
-
-# In[4]:
-
-
-# --- Main Execution Block ---
+# ---------------------------------------------------------------------------
+# Main Execution — Site-level batch processor
+# Change mainfolder to target any site folder (Site_1, Site_8, etc.)
+# ---------------------------------------------------------------------------
 mainfolder = r"D:\003_PRESENTATIONS\28_THI_NGHIEM_FAFALAB\2026_Sieve_Analysis_Test\Site_1"
-files = glob(os.path.join(mainfolder, "*.csv"))
 
+figs_dir = os.path.join(mainfolder, "figs")
+json_dir = os.path.join(mainfolder, "json_report")
+os.makedirs(figs_dir, exist_ok=True)
+os.makedirs(json_dir, exist_ok=True)
 
-# In[6]:
+files = sorted(glob(os.path.join(mainfolder, "*.csv")))
+if not files:
+    print(f"No CSV files found in {mainfolder}")
+else:
+    for file_path in files:
+        sample_name = os.path.basename(file_path).replace(".csv", "")
+        print(f"\nProcessing {sample_name} ...")
 
+        df_raw = pd.read_csv(file_path)
+        df_raw["Size_mm"] = df_raw["Sieve"].map(SIEVE_DIAMETERS)
+        df_raw = df_raw.sort_values("Size_mm", ascending=False).reset_index(drop=True)
 
+        df_final, total_m = calculate_percent_passing(df_raw)
+        dx_vals, coeffs, estimated = get_geotechnical_parameters(df_final)
 
+        fig = plot_gsd(df_final, dx_vals, coeffs,
+                       title=f"GSD Analysis: {sample_name}",
+                       estimated=estimated)
+        plot_path = os.path.join(figs_dir, f"{sample_name}_gsd.png")
+        fig.savefig(plot_path)
+        plt.close(fig)
+        print(f"  Plot  -> {plot_path}")
 
+        json_path = os.path.join(json_dir, f"{sample_name}.json")
+        export_results_to_json(sample_name, dx_vals, coeffs,
+                               output_path=json_path, estimated=estimated)
+        print(f"  JSON  -> {json_path}")
 
-# In[5]:
-
-
-# Example: Process the second file in the list
-file_path = files[1]
-sample_name = os.path.basename(file_path).replace(".csv", "")
-
-# 1. Load and Clean
-df_raw = pd.read_csv(file_path)
-
-# Map diameters and sort COARSE to FINE for the cumulative calculation
-df_raw["Size_mm"] = df_raw["Sieve"].map(SIEVE_DIAMETERS)
-df_raw = df_raw.sort_values("Size_mm", ascending=False).reset_index(drop=True)
-
-# 2. Process
-df_final, total_m = calculate_percent_passing(df_raw)
-dx_vals, coeffs = get_geotechnical_parameters(df_final)
-
-# 3. Visualize
-fig = plot_gsd(df_final, dx_vals, coeffs, title=f"GSD Analysis: {sample_name}")
-output_plot = f"{sample_name}_gsd.png"
-fig.savefig(output_plot)
-print(f"Plot saved to {output_plot}")
-# plt.show()
-
-# 4. Report
-json_file = export_results_to_json(sample_name, dx_vals, coeffs)
-print(f"Results exported to {json_file}")
-
-print(f"Results for {sample_name}:")
-print(f"Sorting Coefficient (S0): {coeffs['S0']:.3f}")
-if not np.isnan(coeffs["Cu"]):
-    print(f"Cu: {coeffs['Cu']:.2f} | Cc: {coeffs['Cc']:.2f}")
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+        if not np.isnan(coeffs["S0"]):
+            print(f"  S0={coeffs['S0']:.3f}")
+        if not np.isnan(coeffs["Cu"]):
+            print(f"  Cu={coeffs['Cu']:.2f} | Cc={coeffs['Cc']:.2f}")
+        elif not np.isnan(estimated.get("Cu_est", np.nan)):
+            print(f"  Cu_est={estimated['Cu_est']:.1f} (extrapolated)")

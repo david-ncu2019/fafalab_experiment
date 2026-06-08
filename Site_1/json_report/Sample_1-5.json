@@ -4,13 +4,21 @@
         "D10": null,
         "D25": null,
         "D30": null,
-        "D60": 0.6382606259768653,
-        "D75": 1.1458969440135347
+        "D60": 0.6278030312689272,
+        "D75": 1.1376735184217905
     },
     "Coefficients": {
         "Cu": null,
         "Cc": null,
         "S0": null,
         "K_hazen_cms": null
+    },
+    "Estimated_Coefficients": {
+        "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
+        "D10_est_mm": 0.005037491175052019,
+        "Cu_est": 124.62613024080272,
+        "Cc_est": null,
+        "K_KC_low_cms": 0.1336490088411499,
+        "K_KC_high_cms": 0.2264646557352232
     }
 }

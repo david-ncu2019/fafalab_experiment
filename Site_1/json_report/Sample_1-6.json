@@ -2,15 +2,23 @@
     "Sample_Name": "Sample_1-6",
     "D_Values_mm": {
         "D10": null,
-        "D25": 0.08753993364046031,
-        "D30": 0.15161084402663733,
-        "D60": 0.8159058848222418,
-        "D75": 1.4251348268696067
+        "D25": 0.08684885668855137,
+        "D30": 0.15053965667209993,
+        "D60": 0.8057919828873445,
+        "D75": 1.4195553594822359
     },
     "Coefficients": {
         "Cu": null,
         "Cc": null,
-        "S0": 4.034826552022314,
+        "S0": 4.042910377236302,
         "K_hazen_cms": null
+    },
+    "Estimated_Coefficients": {
+        "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
+        "D10_est_mm": 0.016677996967451297,
+        "Cu_est": 48.31467378606223,
+        "Cc_est": 1.6863006592495047,
+        "K_KC_low_cms": 0.3250805017178814,
+        "K_KC_high_cms": 0.5508401786598706
     }
 }
