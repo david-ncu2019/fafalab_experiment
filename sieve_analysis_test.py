@@ -37,21 +37,22 @@ plt.rcParams.update(
 # In[3]:
 
 
-# Standard Sieve Diameters (mm)
+# Standard Sieve Diameters (mm) per ASTM E11
 SIEVE_DIAMETERS = {
-    "#4": 4.76,
-    "#10": 2.0,
-    "#20": 0.84,
-    "#30": 0.59,
-    "#40": 0.42,
-    "#50": 0.297,
-    "#60": 0.25,
-    "#80": 0.177,
-    "#100": 0.149,
-    "#140": 0.105,
-    "#200": 0.074,
-    "#400": 0.037,
-    "Pan": 0.001,  # Pan represented as a very fine size for interpolation
+    "#4": 4.750,
+    "#10": 2.000,
+    "#20": 0.850,
+    "#30": 0.600,
+    "#40": 0.425,
+    "#50": 0.300,
+    "#60": 0.250,
+    "#80": 0.180,
+    "#100": 0.150,
+    "#140": 0.106,
+    "#200": 0.075,
+    "#270": 0.053,
+    "#400": 0.038,
+    "Pan": 0.001,  # Pan placeholder for display; excluded from interpolation
 }
 
 
@@ -76,11 +77,36 @@ def calculate_percent_passing(df):
 
 
 def get_Dx(target, sizes, passing):
-    """Calculates Dx using Monotonic Cubic Interpolation (PCHIP)."""
-    unique_p, indices = np.unique(passing, return_index=True)
-    unique_log_s = np.log10(sizes[indices])
-    pchip_func = PchipInterpolator(unique_p, unique_log_s)
-    return 10 ** float(pchip_func(target))
+    """Calculates Dx using Monotonic Cubic Interpolation (PCHIP).
+
+    Only interpolates within the measured range (physical sieves).
+    Raises ValueError if target percentile is outside the range.
+    """
+    # Exclude Pan (0.001 mm) to prevent false out-of-range suppression
+    mask = sizes > 0.001
+    phys_sizes = sizes[mask]
+    phys_passing = passing[mask]
+
+    # Check if target is within the measured range
+    min_pass = phys_passing.min()
+    max_pass = phys_passing.max()
+
+    if target < min_pass or target > max_pass:
+        raise ValueError(
+            f"D{target} cannot be interpolated: target {target}% is outside "
+            f"measured range [{min_pass:.1f}%, {max_pass:.1f}%]. "
+            f"Hydrometer analysis (ASTM D7928) required for fine fractions."
+        )
+
+    unique_p, indices = np.unique(phys_passing, return_index=True)
+    unique_log_s = np.log10(phys_sizes[indices])
+    pchip_func = PchipInterpolator(unique_p, unique_log_s, extrapolate=False)
+    result = float(pchip_func(target))
+
+    if np.isnan(result):
+        raise ValueError(f"D{target} interpolation returned NaN.")
+
+    return 10 ** result
 
 
 def get_geotechnical_parameters(df):
@@ -107,8 +133,20 @@ def get_geotechnical_parameters(df):
         results["D75"],
     )
 
+    # Calculate Cu first for Hazen validity check
+    cu_val = d60 / d10 if not np.isnan(d10) else np.nan
+
+    # Hazen formula only valid for: 0.1 ≤ D10 ≤ 3.0 mm AND Cu < 5
+    hazen_valid = (
+        not np.isnan(d10)
+        and 0.1 <= d10 <= 3.0
+        and not np.isnan(d60)
+        and not np.isnan(cu_val)
+        and cu_val < 5
+    )
+
     coeffs = {
-        "Cu": d60 / d10 if not np.isnan(d10) else np.nan,
+        "Cu": cu_val,
         "Cc": (
             (d30**2) / (d60 * d10)
             if not (np.isnan(d10) or np.isnan(d30))
@@ -119,7 +157,7 @@ def get_geotechnical_parameters(df):
             if not (np.isnan(d75) or np.isnan(d25))
             else np.nan
         ),
-        "K_hazen_cms": (d10**2) if not np.isnan(d10) else np.nan, # Hazen: K(cm/s) = C * D10^2, C=1.0
+        "K_hazen_cms": (d10**2) if hazen_valid else np.nan,
     }
     return results, coeffs
 
@@ -190,14 +228,16 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution"):
         )
 
     # Add Coefficients Box at the Top-Left corner
-    k_val = coeffs['K_hazen_cms']
-    k_str = f"{k_val:.2e}" if not np.isnan(k_val) else "N/A"
-    
+    cu_str = f"{coeffs['Cu']:.2f}" if not np.isnan(coeffs['Cu']) else "N/A (hydrometer required)"
+    cc_str = f"{coeffs['Cc']:.2f}" if not np.isnan(coeffs['Cc']) else "N/A (hydrometer required)"
+    s0_str = f"{coeffs['S0']:.2f}" if not np.isnan(coeffs['S0']) else "N/A"
+    k_str = f"{coeffs['K_hazen_cms']:.2e}" if not np.isnan(coeffs['K_hazen_cms']) else "N/A (criteria unmet)"
+
     coeff_text = (
         f"Geotechnical Parameters:\n"
-        f"$C_u$: {coeffs['Cu']:.2f}\n"
-        f"$C_c$: {coeffs['Cc']:.2f}\n"
-        f"$S_0$: {coeffs['S0']:.2f}\n"
+        f"$C_u$: {cu_str}\n"
+        f"$C_c$: {cc_str}\n"
+        f"$S_0$: {s0_str}\n"
         f"$K_{{Hazen}}$: {k_str} cm/s"
     )
     ax.text(
@@ -211,7 +251,7 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution"):
         zorder=11
     )
 
-    ax.set_xlim(0.001, 10)
+    ax.set_xlim(10, 0.001)  # Invert: coarse (left) to fine (right), per geotechnical convention
     ax.grid(True, which="both", ls="-", alpha=0.5)
     ax.set_title(title, fontsize=18, pad=20)
     ax.set_xlabel("Particle Size (mm)", fontsize=16)
