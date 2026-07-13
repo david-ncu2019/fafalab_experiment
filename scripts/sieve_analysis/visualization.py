@@ -24,9 +24,9 @@ plt.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica", "sans-serif"],
     "mathtext.fontset": "dejavusans", "figure.dpi": 300,
-    "axes.unicode_minus": False, "axes.titlesize": 18,
-    "axes.labelsize": 15, "xtick.labelsize": 12,
-    "ytick.labelsize": 12, "legend.fontsize": 11,
+    "axes.unicode_minus": False, "axes.titlesize": 20,
+    "axes.labelsize": 16, "xtick.labelsize": 14,
+    "ytick.labelsize": 14, "legend.fontsize": 11,
 })
 
 
@@ -72,9 +72,7 @@ def style_gsd_axes(ax: plt.Axes) -> None:
     ax.set_ylim(*Y_LIMITS_PERCENT)
 
     # Fine on the left, coarse on the right: do not invert this axis.
-    ax.set_xlabel(
-        "Particle Size (mm) — fine particles on the left, coarse particles on the right"
-    )
+    ax.set_xlabel("Particle Size (mm)")
     ax.set_ylabel("Percent Passing (%)")
 
     # Remove top and right borders.
@@ -91,8 +89,8 @@ def style_gsd_axes(ax: plt.Axes) -> None:
     ax.set_yticks(np.arange(0, 101, 10))
     ax.grid(True, which="major", alpha=0.35, linewidth=0.8)
     ax.grid(True, which="minor", axis="x", alpha=0.16, linewidth=0.5)
-    ax.tick_params(direction="out", length=5)
-    ax.tick_params(which="minor", length=3)
+    ax.tick_params(direction="out", length=5, bottom=True, left=True)
+    ax.tick_params(which="minor", length=3, bottom=True, left=True)
 
 
 def format_optional(

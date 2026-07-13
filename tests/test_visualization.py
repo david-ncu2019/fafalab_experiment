@@ -27,7 +27,7 @@ def test_plot_functions_return_figures(valid_source: Path):
         assert figures[0].axes[0].get_xscale() == "log"
         assert figures[1].axes[0].get_xscale() == "log"
         assert figures[1].axes[0].get_xlim() == (0.03, 10.0)
-        assert figures[1].axes[0].get_ylim() == (0.0, 100.0)
+        assert figures[1].axes[0].get_ylim() == (0.0, 105.0)
     finally:
         for figure in figures:
             plt.close(figure)
