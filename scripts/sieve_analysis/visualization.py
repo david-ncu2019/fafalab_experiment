@@ -338,7 +338,20 @@ def plot_analysis(
     size_grid, passing_grid, _ = build_pchip_curve(physical)
 
     configure_visual_theme()
-    fig, ax = plt.subplots(figsize=A4_LANDSCAPE)
+    
+    # Use subplot_mosaic for layout
+    fig, ax_dict = plt.subplot_mosaic(
+        [["A", "A", "A", "B"],
+         ["A", "A", "A", "B"],
+         ["A", "A", "A", "B"]],
+        figsize=A4_LANDSCAPE
+    )
+    ax = ax_dict["A"]
+    ax_info = ax_dict["B"]
+    
+    # Hide axes on the info panel
+    ax_info.axis("off")
+
     style_gsd_axes(ax)
 
     ax.plot(
@@ -423,11 +436,12 @@ def plot_analysis(
     minimum_passing = float(physical["Percent_Passing"].min())
     maximum_passing = float(physical["Percent_Passing"].max())
 
-    ax.text(
-        0.02,
-        0.97,
+    # Place info boxes in the dedicated subplot (ax_info)
+    ax_info.text(
+        0.05,
+        0.95,
         build_dx_text(dx_values),
-        transform=ax.transAxes,
+        transform=ax_info.transAxes,
         va="top",
         ha="left",
         fontsize=10.5,
@@ -436,17 +450,17 @@ def plot_analysis(
         zorder=10,
     )
 
-    ax.text(
-        0.98,
-        0.03,
+    ax_info.text(
+        0.05,
+        0.05,
         build_coefficient_text(
             coefficients,
             minimum_passing,
             maximum_passing,
         ),
-        transform=ax.transAxes,
+        transform=ax_info.transAxes,
         va="bottom",
-        ha="right",
+        ha="left",
         fontsize=10.2,
         color=COLORS["text"],
         bbox=INFO_BOX_STYLE,

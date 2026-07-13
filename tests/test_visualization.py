@@ -23,7 +23,7 @@ def test_plot_functions_return_figures(valid_source: Path):
         plot_analysis(data, valid_source.stem, dx_values, coefficients),
     ]
     try:
-        assert all(len(figure.axes) == 1 for figure in figures)
+        assert all(len(figure.axes) == 2 for figure in figures)
         assert figures[0].axes[0].get_xscale() == "log"
         assert figures[1].axes[0].get_xscale() == "log"
         assert figures[1].axes[0].get_xlim() == (0.03, 10.0)
@@ -95,7 +95,7 @@ def test_information_boxes_use_light_background(valid_source: Path):
         calculate_composition(data), get_pan_mass_percent(data, total),
     )
     try:
-        boxed_text = [text for text in figure.axes[0].texts if text.get_bbox_patch()]
+        boxed_text = [text for text in figure.axes[1].texts if text.get_bbox_patch()]
         assert len(boxed_text) == 2
         for text in boxed_text:
             face = text.get_bbox_patch().get_facecolor()
@@ -103,6 +103,7 @@ def test_information_boxes_use_light_background(valid_source: Path):
             assert text.get_color() == "#263238"
         visible_labels = [figure.axes[0].get_xlabel(), figure.axes[0].get_ylabel()]
         visible_labels.extend(text.get_text() for text in figure.axes[0].texts)
+        visible_labels.extend(text.get_text() for text in figure.axes[1].texts)
         assert all("â" not in label and "�" not in label for label in visible_labels)
     finally:
         plt.close(figure)
