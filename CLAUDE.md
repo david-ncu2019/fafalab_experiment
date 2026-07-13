@@ -5,23 +5,30 @@ Geotechnical grain-size distribution (GSD) pipeline following ASTM D6913. Proces
 ## Environment
 
 ```bash
-conda activate fafalab  # Python 3.10
-# Dependencies: numpy, pandas, matplotlib, scipy
+conda activate just4fun  # Python 3.12.9
+# Dependencies: numpy, pandas, matplotlib, scipy, seaborn
 ```
+
+All scripts in this directory **must use the `just4fun` conda environment**. Do not use `fafalab` — it has conflicting package versions.
 
 ## Commands
 
 Run all commands from the **repo root** (not from inside `scripts/`):
 
 ```bash
-# Batch analysis for a site (edit mainfolder in script first)
-python scripts/sieve_analysis_test.py
+# Canonical two-figure batch analysis
+python scripts/sieve_analysis_two_figures.py --folder Site_8
 
 # Generate Site 1 stratigraphic profile (Cu and K vs. depth)
 python scripts/plot_stratigraphy.py
 ```
 
 ## Architecture
+
+The canonical pipeline is modular: `sieve_analysis/input.py` validates data,
+`analysis.py` calculates results, `visualization.py` creates figures,
+`reporting.py` writes outputs, and `pipeline.py` coordinates batches.
+`sieve_analysis_test.py` and `plot_stratigraphy.py` remain legacy workflows.
 
 Two-stage pipeline decoupled by JSON:
 
@@ -83,7 +90,9 @@ Pan,114.44
 
 ## Key Files
 
-- `scripts/sieve_analysis_test.py` — main batch analysis engine
+- `scripts/sieve_analysis_two_figures.py` — canonical CLI entry point
+- `scripts/sieve_analysis/` — input, analysis, visualization, reporting, and pipeline modules
+- `scripts/sieve_analysis_test.py` — retained legacy analysis engine
 - `scripts/plot_stratigraphy.py` — stratigraphic profile from Site 1 JSON outputs
 - `docs/sieve_analysis_guide.md` — ASTM D6913 procedure reference
 - `docs/sample_taken_method.md` — sampling protocol (10m pit, depth naming)
@@ -93,7 +102,7 @@ Pan,114.44
 ## Gotchas
 
 - **Run scripts from repo root**, not from `scripts/`. All relative paths (`Site_1/`, `outputs/`) resolve from CWD.
-- `sieve_analysis_test.py` uses `glob(mainfolder + "/*.csv")` — CSVs must stay at the Site_N root, not in subdirs.
+- The canonical CLI accepts `--folder`; CSVs must stay at the Site_N root, not in subdirectories.
 - `SIEVE_DIAMETERS` values (#4=4.76, #10=2.0, etc.) are the **actual markings on physical lab sieves** — never "correct" them to ASTM E11 nominal values.
 - `reference/example_analysis.csv` has a **different schema** (includes pre-computed `Cumulative_Distribution(%)`) — it is a reference file, not a pipeline input.
 - Sample naming: `Sample_<site>-<depth_m>` (Site 1, absolute height above pit base) vs. `Sample_<site>-<range>` (Site 8, depth interval).

@@ -15,40 +15,41 @@ When more than ~10 % of the sample passes the finest sieve (#200, 0.074 mm), the
 ## Environment Setup
 
 ```bash
-conda activate fafalab   # Python 3.10
-# Required packages: numpy, pandas, matplotlib, scipy
+conda activate just4fun   # Python 3.12.9
+# Required packages: numpy, pandas, matplotlib, scipy, seaborn
 ```
 
 Install dependencies if needed:
 
 ```bash
-pip install numpy pandas matplotlib scipy
+pip install -r requirements.txt
 ```
 
 ---
 
 ## Usage
 
-### Single-sample / batch analysis
+### Canonical site batch analysis
 
-Open `scripts/sieve_analysis_test.py` and set `mainfolder` near the bottom of the file to the target site directory:
-
-```python
-mainfolder = r"path\to\Site_1"   # change to Site_8, etc.
-```
-
-Then run **from the repo root**:
+Run from the repository root and select the site explicitly:
 
 ```bash
-python scripts/sieve_analysis_test.py
+python scripts/sieve_analysis_two_figures.py --folder Site_8
 ```
 
-The script processes **all CSV files** found in `mainfolder` in alphabetical order, writing a GSD plot and a JSON report for each sample into auto-created sub-directories:
+Optional arguments are `--pit-depth 10`, `--dpi 600`, and `--show`. Root-level CSV files are processed alphabetically and produce:
 
 ```
-Site_N/figs/<sample_name>_gsd.png
+Site_N/figs/01_raw_measurements/<sample>__01_raw_measurements.png
+Site_N/figs/02_gsd_analysis/<sample>__02_gsd_analysis.png
+Site_N/processed_tables/<sample>__processed.csv
 Site_N/json_report/<sample_name>.json
+Site_N/reports/sieve_analysis_summary.csv
 ```
+
+Implementation modules are under `scripts/sieve_analysis/`. The older
+`sieve_analysis_test.py` and `plot_stratigraphy.py` remain legacy workflows
+with a different JSON contract.
 
 ### Stratigraphic profile (Site 1 only)
 
@@ -230,7 +231,7 @@ The Hazen formula is intentionally strict: samples with fine fractions (Cu ≥ 5
 
 **Site 1** depth naming convention: `Sample_1-<H>` where H is the height in metres above the pit base (0 = base, 10 = surface). **Site 8** uses depth-interval naming: `Sample_8-<top>-<bottom>`.
 
-To process a different site, set `mainfolder` in `scripts/sieve_analysis_test.py` to the target site path. Output sub-directories (`figs/`, `json_report/`) are created automatically on first run.
+For the canonical workflow, select another site with `--folder Site_N`; output directories are created automatically. Editing `mainfolder` applies only to the retained legacy script.
 
 ---
 
@@ -242,8 +243,8 @@ To process a different site, set `mainfolder` in `scripts/sieve_analysis_test.py
 
 3. **Hazen K validity window is narrow.** K_Hazen is only reported when 0.1 mm ≤ D10 ≤ 3.0 mm and Cu < 5 (well-sorted sands). Most samples in this dataset fall outside this window; use K_KC_est for a broader screening value.
 
-4. **One site at a time.** Change `mainfolder` in `sieve_analysis_test.py` before running. The stratigraphy script is hard-coded to `Site_1/json_report/`.
+4. **One site at a time.** Pass one site root through `--folder`. The legacy stratigraphy script remains hard-coded to `Site_1/json_report/`.
 
 5. **Fixed sieve set.** `SIEVE_DIAMETERS` lists 13 sieves (#4 to Pan). If a sample was tested with additional or different sieves, the dictionary must be updated in the script.
 
-6. **Fixed sieve set per run.** Change `mainfolder` in `sieve_analysis_test.py` to switch between sites. The stratigraphy script is currently hard-coded to `Site_1/json_report/`.
+6. **Fixed sieve set per run.** Sieve openings are defined in `scripts/sieve_analysis/constants.py`; use `--folder` to switch sites.

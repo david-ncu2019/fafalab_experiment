@@ -1,24 +1,39 @@
 {
     "Sample_Name": "Sample_1-10",
+    "Source_File": "Sample_1-10.csv",
+    "Location": {
+        "Site": 1,
+        "Height_Above_Pit_Bottom_Low_m": 10.0,
+        "Height_Above_Pit_Bottom_High_m": 10.0,
+        "Depth_Below_Ground_Shallow_m": 0.0,
+        "Depth_Below_Ground_Deep_m": 0.0
+    },
+    "Recovered_Mass_g": 498.52,
+    "Composition_Percent": {
+        "Gravel_percent": 0.0,
+        "Sand_percent": 75.48343095562865,
+        "Passing_No200_percent": 24.51656904437135
+    },
+    "Pan_Mass_Percent": 24.51656904437134,
     "D_Values_mm": {
         "D10": null,
-        "D25": 0.07768150764020607,
-        "D30": 0.12115392518595276,
-        "D60": 0.6022824770265055,
-        "D75": 0.9516890251659584
+        "D20": null,
+        "D25": 0.07820475678596156,
+        "D30": 0.12153165363750858,
+        "D50": 0.4101678677545091,
+        "D60": 0.6023383624647884,
+        "D75": 0.9554038668846184
     },
-    "Coefficients": {
+    "Gradation_Coefficients": {
         "Cu": null,
         "Cc": null,
-        "S0": 3.500166530568008,
-        "K_hazen_cms": null
+        "S0_Trask": 3.49523928079842
     },
-    "Estimated_Coefficients": {
-        "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
-        "D10_est_mm": 0.023200029464164974,
-        "Cu_est": 25.960418626053805,
-        "Cc_est": 1.050476191817665,
-        "K_KC_low_cms": 0.1630830197951029,
-        "K_KC_high_cms": 0.27633979671375763
-    }
+    "Method_Notes": [
+        "Pan mass is included in the mass balance.",
+        "Pan is not assigned a particle diameter and is excluded from plots.",
+        "PCHIP interpolation is restricted to the physical-sieve range.",
+        "Dx values outside the measured passing range are reported as null.",
+        "No D10 extrapolation or hydraulic-conductivity formula is applied."
+    ]
 }

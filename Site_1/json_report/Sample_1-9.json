@@ -1,24 +1,39 @@
 {
     "Sample_Name": "Sample_1-9",
+    "Source_File": "Sample_1-9.csv",
+    "Location": {
+        "Site": 1,
+        "Height_Above_Pit_Bottom_Low_m": 9.0,
+        "Height_Above_Pit_Bottom_High_m": 9.0,
+        "Depth_Below_Ground_Shallow_m": 1.0,
+        "Depth_Below_Ground_Deep_m": 1.0
+    },
+    "Recovered_Mass_g": 497.53999999999996,
+    "Composition_Percent": {
+        "Gravel_percent": 0.0,
+        "Sand_percent": 92.38252200828073,
+        "Passing_No200_percent": 7.617477991719269
+    },
+    "Pan_Mass_Percent": 7.61747799171926,
     "D_Values_mm": {
-        "D10": 0.08967003897062725,
-        "D25": 0.2348448513811437,
-        "D30": 0.32658295006067156,
-        "D60": 0.9690110536949699,
-        "D75": 1.633559864019767
+        "D10": 0.09040135016921247,
+        "D20": 0.17315827338850218,
+        "D25": 0.23483061467458322,
+        "D30": 0.3266033902553139,
+        "D50": 0.7111181659317961,
+        "D60": 0.9694577562673746,
+        "D75": 1.6327871596695518
     },
-    "Coefficients": {
-        "Cu": 10.806408303361883,
-        "Cc": 1.2274701110546609,
-        "S0": 2.637406095124069,
-        "K_hazen_cms": null
+    "Gradation_Coefficients": {
+        "Cu": 10.723930056937778,
+        "Cc": 1.2171316914432022,
+        "S0_Trask": 2.6368621769671026
     },
-    "Estimated_Coefficients": {
-        "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
-        "D10_est_mm": null,
-        "Cu_est": null,
-        "Cc_est": null,
-        "K_KC_low_cms": 0.4903383129601652,
-        "K_KC_high_cms": 0.8308651010670566
-    }
+    "Method_Notes": [
+        "Pan mass is included in the mass balance.",
+        "Pan is not assigned a particle diameter and is excluded from plots.",
+        "PCHIP interpolation is restricted to the physical-sieve range.",
+        "Dx values outside the measured passing range are reported as null.",
+        "No D10 extrapolation or hydraulic-conductivity formula is applied."
+    ]
 }
