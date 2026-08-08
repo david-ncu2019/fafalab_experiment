@@ -1,39 +1,31 @@
 {
     "Sample_Name": "Sample_8-5-6",
-    "Source_File": "Sample_8-5-6.csv",
-    "Location": {
-        "Site": 8,
-        "Height_Above_Pit_Bottom_Low_m": 5.0,
-        "Height_Above_Pit_Bottom_High_m": 6.0,
-        "Depth_Below_Ground_Shallow_m": 4.0,
-        "Depth_Below_Ground_Deep_m": 5.0
-    },
-    "Recovered_Mass_g": 499.53999999999996,
-    "Composition_Percent": {
-        "Gravel_percent": 0.0,
-        "Sand_percent": 59.73095247627819,
-        "Passing_No200_percent": 40.26904752372181
-    },
-    "Pan_Mass_Percent": 40.269047523721824,
     "D_Values_mm": {
         "D10": null,
-        "D20": null,
         "D25": null,
         "D30": null,
-        "D50": 0.16469763230562195,
-        "D60": 0.3147385910493665,
-        "D75": 0.6201105791587604
+        "D60": 0.3146670282263366,
+        "D75": 0.6202260468552347
     },
-    "Gradation_Coefficients": {
+    "Coefficients": {
         "Cu": null,
         "Cc": null,
-        "S0_Trask": null
+        "S0": null,
+        "K_hazen_cms": null
     },
-    "Method_Notes": [
-        "Pan mass is included in the mass balance.",
-        "Pan is not assigned a particle diameter and is excluded from plots.",
-        "PCHIP interpolation is restricted to the physical-sieve range.",
-        "Dx values outside the measured passing range are reported as null.",
-        "No D10 extrapolation or hydraulic-conductivity formula is applied."
-    ]
+    "Estimated_Coefficients": {
+        "Warning": "Screening-level estimates from sieve data only. Methods: KC+fines-correction (Kenney & Lau 1985), Chapuis (2004), USBR-D20 (1985), texture bracket (Freeze & Cherry 1979). Confirm with ASTM D7928 hydrometer.",
+        "D10_est_mm": 0.006423880815764213,
+        "Cu_est": 48.98394556980933,
+        "Cc_est": null,
+        "K_KC_low_cms": 0.02628438586525338,
+        "K_KC_high_cms": 0.04453818586310108,
+        "K_KC_corrected_low_cms": 0.005256877173050676,
+        "K_KC_corrected_high_cms": 0.008907637172620216,
+        "K_Chapuis_low_cms": 0.020015361870208092,
+        "K_Chapuis_high_cms": 0.024564307749800837,
+        "K_USBR_cms": null,
+        "K_texture_low_cms": 1e-05,
+        "K_texture_high_cms": 0.0001
+    }
 }

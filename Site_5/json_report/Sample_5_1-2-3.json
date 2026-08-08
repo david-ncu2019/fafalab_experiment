@@ -1,0 +1,39 @@
+{
+    "Sample_Name": "Sample_5_1-2-3",
+    "Source_File": "Sample_5_1-2-3.csv",
+    "Location": {
+        "Site": 1,
+        "Height_Above_Pit_Bottom_Low_m": 2.0,
+        "Height_Above_Pit_Bottom_High_m": 3.0,
+        "Depth_Below_Ground_Shallow_m": 7.0,
+        "Depth_Below_Ground_Deep_m": 8.0
+    },
+    "Recovered_Mass_g": 559.7,
+    "Composition_Percent": {
+        "Gravel_percent": 0.0,
+        "Sand_percent": 66.82151152403073,
+        "Passing_No200_percent": 33.178488475969274
+    },
+    "Pan_Mass_Percent": 33.17848847596927,
+    "D_Values_mm": {
+        "D10": 0.028095235360284677,
+        "D20": 0.04266714864593463,
+        "D25": 0.052580425223971314,
+        "D30": 0.06479695045188032,
+        "D50": 0.1713184893277664,
+        "D60": 0.29311604178668416,
+        "D75": 0.513368984206365
+    },
+    "Gradation_Coefficients": {
+        "Cu": 10.432944875807374,
+        "Cc": 0.50984348279369,
+        "S0_Trask": 3.1246599892079625
+    },
+    "Method_Notes": [
+        "Pan mass is included in the mass balance.",
+        "Pan is not assigned a particle diameter and is excluded from plots.",
+        "PCHIP interpolation is restricted to the physical-sieve range.",
+        "Dx values outside the measured passing range are reported as null.",
+        "No D10 extrapolation or hydraulic-conductivity formula is applied."
+    ]
+}

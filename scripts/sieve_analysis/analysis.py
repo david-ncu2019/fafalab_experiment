@@ -74,26 +74,34 @@ def get_dx_from_pchip(
     minimum = float(np.min(passing))
     maximum = float(np.max(passing))
 
-    if target_percent < minimum or target_percent > maximum:
-        return np.nan
+    if target_percent >= minimum and target_percent <= maximum:
+        exact = np.isclose(passing, target_percent, atol=1e-10)
+        if np.any(exact):
+            # A plateau may have more than one sieve at the same passing value.
+            # Use the geometric mean of the matching sieve sizes.
+            return float(10.0 ** np.mean(log_sizes[exact]))
 
-    exact = np.isclose(passing, target_percent, atol=1e-10)
-    if np.any(exact):
-        # A plateau may have more than one sieve at the same passing value.
-        # Use the geometric mean of the matching sieve sizes.
-        return float(10.0 ** np.mean(log_sizes[exact]))
+        for index in range(len(passing) - 1):
+            p_left = passing[index]
+            p_right = passing[index + 1]
 
-    for index in range(len(passing) - 1):
-        p_left = passing[index]
-        p_right = passing[index + 1]
+            if p_left < target_percent < p_right:
+                root = brentq(
+                    lambda log_d: float(interpolator(log_d)) - target_percent,
+                    log_sizes[index],
+                    log_sizes[index + 1],
+                )
+                return float(10.0 ** root)
 
-        if p_left < target_percent < p_right:
-            root = brentq(
-                lambda log_d: float(interpolator(log_d)) - target_percent,
-                log_sizes[index],
-                log_sizes[index + 1],
-            )
-            return float(10.0 ** root)
+    # Fine-side log-linear extrapolation to Pan (0.0185mm, 0% passing)
+    if target_percent < minimum and minimum > 0:
+        pan_size_mm = 0.0185  # Half of 0.037mm (#400 sieve)
+        log_pan = np.log10(pan_size_mm)
+        log_min_size = np.log10(sizes.min())
+        slope = (minimum - 0.0) / (log_min_size - log_pan)
+        if slope > 0:
+            log_dx = log_pan + (target_percent - 0.0) / slope
+            return float(10.0 ** log_dx)
 
     return np.nan
 

@@ -91,7 +91,7 @@ def get_geotechnical_parameters(df):
     sizes = df["Size_mm"].values
     passing = df["Percent_Passing"].values
 
-    targets = [10, 25, 30, 50, 60, 75]  # D50 included for Kozeny-Carman estimation
+    targets = [10, 20, 25, 30, 50, 60, 75]  # D20 for USBR; D50 for Kozeny-Carman
     results = {}
 
     for t in targets:
@@ -99,6 +99,10 @@ def get_geotechnical_parameters(df):
             results[f"D{t}"] = get_Dx(t, sizes, passing)
         except ValueError:
             results[f"D{t}"] = np.nan
+
+    # % passing #200 sieve — needed for fines-correction and texture bracket
+    row_200 = df.loc[df["Size_mm"] == 0.074, "Percent_Passing"].values
+    pct_fines = float(row_200[0]) if len(row_200) else np.nan
 
     d10, d25, d30, d60, d75 = (
         results["D10"], results["D25"], results["D30"],
@@ -131,19 +135,26 @@ def get_geotechnical_parameters(df):
         "K_hazen_cms": (d10 ** 2) if hazen_valid else np.nan,
     }
 
-    estimated = _estimate_params(df, results)
+    estimated = _estimate_params(df, results, pct_fines)
     return results, coeffs, estimated
 
 
-def _estimate_params(df, results):
+def _estimate_params(df, results, pct_fines=np.nan):
     """Educated estimates for Cu, Cc, K when D10 is unmeasurable by sieve.
 
     D10_est: log-linear extrapolation from 3 finest physical sieve points.
-    K_KC_est: Kozeny-Carman using D50, porosity n=0.40-0.45.
+    K methods: Kozeny-Carman, KC+Kenney-Lau fines correction, Chapuis (2004),
+               USBR-D20 (1985), texture bracket (Freeze & Cherry 1979).
     Results are indicative only. Confirm with ASTM D7928 hydrometer.
     """
-    est = {k: np.nan for k in ["D10_est", "Cu_est", "Cc_est",
-                                "K_KC_low_cms", "K_KC_high_cms"]}
+    est = {k: np.nan for k in [
+        "D10_est", "Cu_est", "Cc_est",
+        "K_KC_low_cms", "K_KC_high_cms",
+        "K_KC_corrected_low_cms", "K_KC_corrected_high_cms",
+        "K_Chapuis_low_cms", "K_Chapuis_high_cms",
+        "K_USBR_cms",
+        "K_texture_low_cms", "K_texture_high_cms",
+    ]}
     sizes   = df["Size_mm"].values
     passing = df["Percent_Passing"].values
 
@@ -178,6 +189,44 @@ def _estimate_params(df, results):
         est["K_KC_low_cms"]  = kc(0.40)
         est["K_KC_high_cms"] = kc(0.45)
 
+    # Kenney-Lau (1985) fines-content correction factor applied to K_KC
+    if not np.isnan(pct_fines):
+        if pct_fines >= 80:
+            f = 0.2
+        elif pct_fines >= 5:
+            f = 1.0 - 0.8 * ((pct_fines - 5) / 35) ** 2
+            f = max(f, 0.2)
+        else:
+            f = 1.0
+        kc_low  = est["K_KC_low_cms"]
+        kc_high = est["K_KC_high_cms"]
+        est["K_KC_corrected_low_cms"]  = kc_low  * f if not np.isnan(kc_low)  else np.nan
+        est["K_KC_corrected_high_cms"] = kc_high * f if not np.isnan(kc_high) else np.nan
+
+    # Chapuis (2004) — better calibrated for poorly-sorted fine soils
+    cu = results.get("Cu", np.nan)
+    if np.isnan(cu):
+        cu = est.get("Cu_est", np.nan)
+    if not np.isnan(d50) and not np.isnan(cu) and cu > 0:
+        def chapuis(n):
+            return 80.0 * (d50 ** 2 / cu ** 1.1) * (n / (1.0 - n))
+        est["K_Chapuis_low_cms"]  = chapuis(0.40)
+        est["K_Chapuis_high_cms"] = chapuis(0.45)
+
+    # USBR (1985) D20-based estimate
+    d20 = results.get("D20", np.nan)
+    if not np.isnan(d20):
+        est["K_USBR_cms"] = 0.01 * d20 ** 2
+
+    # Texture bracket (Freeze & Cherry 1979) — lookup by % passing #200
+    if not np.isnan(pct_fines):
+        if pct_fines >= 80:
+            est["K_texture_low_cms"], est["K_texture_high_cms"] = 1e-6, 1e-5
+        elif pct_fines >= 40:
+            est["K_texture_low_cms"], est["K_texture_high_cms"] = 1e-5, 1e-4
+        else:
+            est["K_texture_low_cms"], est["K_texture_high_cms"] = 1e-4, 1e-2
+
     return est
 
 
@@ -205,8 +254,8 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution", estimated=N
 
     # Annotate Dx values
     for label, val in dx_values.items():
-        if label == "D50":
-            continue  # D50 is internal; don't clutter the plot
+        if label in ("D20", "D50"):
+            continue  # internal use only; don't clutter the plot
         if np.isnan(val):
             continue
         percent = int(label[1:])
@@ -289,20 +338,33 @@ def plot_gsd(df, dx_values, coeffs, title="Grain Size Distribution", estimated=N
 
 def export_results_to_json(sample_name, dx_values, coeffs, output_path=None, estimated=None):
     """Exports geotechnical results to a JSON file."""
-    # Exclude D50 from the public D_Values block (internal use only)
-    d_values_public = {k: _nan_to_none(v) for k, v in dx_values.items() if k != "D50"}
+    # Exclude D20 and D50 from the public D_Values block (internal use only)
+    d_values_public = {k: _nan_to_none(v) for k, v in dx_values.items() if k not in ("D20", "D50")}
 
     results = {
         "Sample_Name": sample_name,
         "D_Values_mm": d_values_public,
         "Coefficients": {k: _nan_to_none(v) for k, v in coeffs.items()},
         "Estimated_Coefficients": {
-            "Warning": "Log-linear extrapolation below #200 sieve. Confirm with ASTM D7928 hydrometer.",
-            "D10_est_mm":    _nan_to_none(estimated.get("D10_est",       np.nan)),
-            "Cu_est":        _nan_to_none(estimated.get("Cu_est",        np.nan)),
-            "Cc_est":        _nan_to_none(estimated.get("Cc_est",        np.nan)),
-            "K_KC_low_cms":  _nan_to_none(estimated.get("K_KC_low_cms",  np.nan)),
-            "K_KC_high_cms": _nan_to_none(estimated.get("K_KC_high_cms", np.nan)),
+            "Warning": (
+                "Screening-level estimates from sieve data only. "
+                "Methods: KC+fines-correction (Kenney & Lau 1985), "
+                "Chapuis (2004), USBR-D20 (1985), "
+                "texture bracket (Freeze & Cherry 1979). "
+                "Confirm with ASTM D7928 hydrometer."
+            ),
+            "D10_est_mm":              _nan_to_none(estimated.get("D10_est",                np.nan)),
+            "Cu_est":                  _nan_to_none(estimated.get("Cu_est",                 np.nan)),
+            "Cc_est":                  _nan_to_none(estimated.get("Cc_est",                 np.nan)),
+            "K_KC_low_cms":            _nan_to_none(estimated.get("K_KC_low_cms",           np.nan)),
+            "K_KC_high_cms":           _nan_to_none(estimated.get("K_KC_high_cms",          np.nan)),
+            "K_KC_corrected_low_cms":  _nan_to_none(estimated.get("K_KC_corrected_low_cms", np.nan)),
+            "K_KC_corrected_high_cms": _nan_to_none(estimated.get("K_KC_corrected_high_cms",np.nan)),
+            "K_Chapuis_low_cms":       _nan_to_none(estimated.get("K_Chapuis_low_cms",      np.nan)),
+            "K_Chapuis_high_cms":      _nan_to_none(estimated.get("K_Chapuis_high_cms",     np.nan)),
+            "K_USBR_cms":              _nan_to_none(estimated.get("K_USBR_cms",             np.nan)),
+            "K_texture_low_cms":       _nan_to_none(estimated.get("K_texture_low_cms",      np.nan)),
+            "K_texture_high_cms":      _nan_to_none(estimated.get("K_texture_high_cms",     np.nan)),
         } if estimated is not None else None,
     }
 
@@ -319,7 +381,8 @@ def export_results_to_json(sample_name, dx_values, coeffs, output_path=None, est
 # Main Execution — Site-level batch processor
 # Change mainfolder to target any site folder (Site_1, Site_8, etc.)
 # ---------------------------------------------------------------------------
-mainfolder = r"D:\003_PRESENTATIONS\28_THI_NGHIEM_FAFALAB\2026_Sieve_Analysis_Test\Site_1"
+# mainfolder = r"D:\003_PRESENTATIONS\28_THI_NGHIEM_FAFALAB\2026_Sieve_Analysis_Test\Site_1"
+mainfolder = r"D:\003_PRESENTATIONS\28_THI_NGHIEM_FAFALAB\2026_Sieve_Analysis_Test\Site_8"
 
 figs_dir = os.path.join(mainfolder, "figs")
 json_dir = os.path.join(mainfolder, "json_report")
