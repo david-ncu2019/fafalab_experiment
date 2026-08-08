@@ -123,22 +123,47 @@ def parse_sample_location(
     pit_depth_m: float,
 ) -> dict[str, Any]:
     """
-    Parse names such as:
-      Sample_1-9
-      Sample_8-3-4
-      Sample_8-9-10(1)
-
-    The first number is the site.
-    Remaining number(s) are height above the pit bottom.
+    Parse sample names into site and height/depth intervals.
+    Examples:
+      Sample_1-0       -> Site 1, height 0.0m
+      Sample_1-9       -> Site 1, height 9.0m
+      Sample_4_1-2     -> Site 4, height 1.0-2.0m
+      Sample_8-1-2     -> Site 8, height 1.0-2.0m
+      Sample_1-9_1-2   -> Site 1-9, height 1.0-2.0m
     """
     cleaned = re.sub(r"\(\d+\)$", "", sample_name.strip())
-    match = re.search(
-        r"(?:Sample[_\s-]*)?(\d+)-(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?",
+    parts = [p for p in cleaned.split("_") if p.casefold() != "sample"]
+
+    if len(parts) >= 2:
+        site_part = parts[0]
+        interval_part = "_".join(parts[1:])
+
+        num_matches = re.findall(r"\d+(?:\.\d+)?", interval_part)
+        if len(num_matches) >= 2:
+            first = float(num_matches[0])
+            second = float(num_matches[-1])
+        elif len(num_matches) == 1:
+            first = second = float(num_matches[0])
+        else:
+            first = second = 0.0
+
+        height_low = min(first, second)
+        height_high = max(first, second)
+
+        return {
+            "site": int(site_part) if site_part.isdigit() else site_part,
+            "height_low_m": height_low,
+            "height_high_m": height_high,
+            "depth_shallow_m": pit_depth_m - height_high,
+            "depth_deep_m": pit_depth_m - height_low,
+        }
+
+    match_std = re.search(
+        r"(?:Sample[_\s-]*)?(\d+)[_-](\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?",
         cleaned,
         flags=re.IGNORECASE,
     )
-
-    if not match:
+    if not match_std:
         return {
             "site": None,
             "height_low_m": None,
@@ -147,23 +172,19 @@ def parse_sample_location(
             "depth_deep_m": None,
         }
 
-    site = int(match.group(1))
-    first = float(match.group(2))
-    second = float(match.group(3)) if match.group(3) else first
+    site_val = int(match_std.group(1))
+    first = float(match_std.group(2))
+    second = float(match_std.group(3)) if match_std.group(3) else first
 
     height_low = min(first, second)
     height_high = max(first, second)
 
-    # Example: 3-4 m above bottom in a 10 m pit becomes 6-7 m below ground.
-    depth_shallow = pit_depth_m - height_high
-    depth_deep = pit_depth_m - height_low
-
     return {
-        "site": site,
+        "site": site_val,
         "height_low_m": height_low,
         "height_high_m": height_high,
-        "depth_shallow_m": depth_shallow,
-        "depth_deep_m": depth_deep,
+        "depth_shallow_m": pit_depth_m - height_high,
+        "depth_deep_m": pit_depth_m - height_low,
     }
 
 
