@@ -135,8 +135,15 @@ def parse_sample_location(
     parts = [p for p in cleaned.split("_") if p.casefold() != "sample"]
 
     if len(parts) >= 2:
-        site_part = parts[0]
-        interval_part = "_".join(parts[1:])
+        if parts[0] in ("1-9", "1_9"):
+            site_part = "1*9"
+            interval_part = "_".join(parts[1:])
+        elif len(parts) >= 3 and parts[0] == "1" and parts[1] == "9":
+            site_part = "1*9"
+            interval_part = "_".join(parts[2:])
+        else:
+            site_part = parts[0]
+            interval_part = "_".join(parts[1:])
 
         num_matches = re.findall(r"\d+(?:\.\d+)?", interval_part)
         if len(num_matches) >= 2:

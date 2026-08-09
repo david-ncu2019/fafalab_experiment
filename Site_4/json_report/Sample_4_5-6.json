@@ -2,11 +2,11 @@
     "Sample_Name": "Sample_4_5-6",
     "Source_File": "Sample_4_5-6.csv",
     "Location": {
-        "Site": 5,
-        "Height_Above_Pit_Bottom_Low_m": 6.0,
+        "Site": 4,
+        "Height_Above_Pit_Bottom_Low_m": 5.0,
         "Height_Above_Pit_Bottom_High_m": 6.0,
         "Depth_Below_Ground_Shallow_m": 4.0,
-        "Depth_Below_Ground_Deep_m": 4.0
+        "Depth_Below_Ground_Deep_m": 5.0
     },
     "Recovered_Mass_g": 519.86,
     "Composition_Percent": {

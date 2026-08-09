@@ -2,7 +2,7 @@
     "Sample_Name": "Sample_1-9_1-2",
     "Source_File": "Sample_1-9_1-2.csv",
     "Location": {
-        "Site": "1-9",
+        "Site": "1*9",
         "Height_Above_Pit_Bottom_Low_m": 1.0,
         "Height_Above_Pit_Bottom_High_m": 2.0,
         "Depth_Below_Ground_Shallow_m": 8.0,

@@ -199,7 +199,11 @@ def plot_raw_measurements(
             zorder=6,
         )
 
-    clean_title = sample_name.replace("_", " ")
+    clean_title = (
+        sample_name.replace("1-9", "1*9")
+        .replace("1_9", "1*9")
+        .replace("_", " ")
+    )
     ax.set_title(clean_title, pad=20)
 
     upper_left = build_location_text(
@@ -335,7 +339,11 @@ def plot_analysis(
             zorder=10,
         )
 
-    clean_title = sample_name.replace("_", " ")
+    clean_title = (
+        sample_name.replace("1-9", "1*9")
+        .replace("1_9", "1*9")
+        .replace("_", " ")
+    )
     ax.set_title(clean_title, fontsize=18, pad=20)
 
     # Geotechnical parameters box at upper-left
