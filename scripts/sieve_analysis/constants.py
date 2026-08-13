@@ -3,7 +3,9 @@
 import numpy as np
 
 DEFAULT_PIT_DEPTH_M = 10.0
-A4_LANDSCAPE = (11.69, 8.27)
+# Custom dimensions: Width 32 cm (12.598 in), Height 18 cm (7.087 in)
+FIGSIZE_32x18_CM = (32.0 / 2.54, 18.0 / 2.54)
+A4_LANDSCAPE = FIGSIZE_32x18_CM
 X_LIMITS_MM = (0.001, 10.0)
 Y_LIMITS_PERCENT = (0.0, 105.0)
 SAVE_DPI = 600
