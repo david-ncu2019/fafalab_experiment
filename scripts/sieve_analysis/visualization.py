@@ -12,6 +12,7 @@ from .analysis import build_pchip_curve, physical_sieve_data
 from .constants import (
     A4_LANDSCAPE,
     COLORS,
+    FIGSIZE_32x18_CM,
     INFO_BOX_STYLE,
     X_LIMITS_MM,
     Y_LIMITS_PERCENT,
@@ -465,4 +466,78 @@ def plot_site_composite_gsd(
     ax.legend(loc="upper left", frameon=True, fontsize=13)
     fig.tight_layout()
     return fig
+
+
+# =============================================================================
+# FIGURE 4: ALL SITES MASTER COMPOSITE GSD SUMMARY
+# =============================================================================
+
+def plot_all_sites_composite_gsd(
+    sites_data: dict[str, list[dict[str, Any]]],
+) -> plt.Figure:
+    """
+    Generate a master composite GSD plot overlaying all samples from all sites.
+    - Title: "All Samples" (bold, 20pt)
+    - 1 unique color per site: color-filled markers and dotted PCHIP line
+    - Legend: 1 entry per site (upper left, 13pt)
+    - Canvas size: 32 cm x 18 cm
+    """
+    configure_visual_theme()
+
+    fig = plt.figure(figsize=FIGSIZE_32x18_CM, dpi=300)
+    ax = fig.add_subplot(111)
+
+    style_gsd_axes(ax)
+
+    # Distinct color palette per site
+    site_names = list(sites_data.keys())
+    palette = sns.color_palette("Set1", n_colors=max(len(site_names), 1))
+    site_colors = {name: palette[i % len(palette)] for i, name in enumerate(site_names)}
+
+    for site_name, samples in sites_data.items():
+        color = site_colors[site_name]
+        for s_idx, item in enumerate(samples):
+            df = item["df"]
+            physical = physical_sieve_data(df)
+            size_grid, passing_grid, _ = build_pchip_curve(physical)
+
+            min_pass = float(physical["Percent_Passing"].min())
+            if min_pass > 0:
+                min_size = float(physical["Size_mm"].min())
+                extrap_sizes = np.logspace(np.log10(0.0185), np.log10(min_size), 100)
+                log_pan = np.log10(0.0185)
+                log_min_size = np.log10(min_size)
+                slope = min_pass / (log_min_size - log_pan)
+                extrap_pass = (np.log10(extrap_sizes) - log_pan) * slope
+
+                size_grid = np.concatenate([extrap_sizes[:-1], size_grid])
+                passing_grid = np.concatenate([extrap_pass[:-1], passing_grid])
+
+            label = site_name if s_idx == 0 else None
+
+            ax.plot(
+                size_grid,
+                passing_grid,
+                color=color,
+                linewidth=1.8,
+                linestyle="dotted",
+                label=label,
+                zorder=3,
+            )
+
+            ax.scatter(
+                physical["Size_mm"],
+                physical["Percent_Passing"],
+                color=color,
+                edgecolor="black",
+                linewidths=0.6,
+                s=50,
+                zorder=5,
+            )
+
+    ax.set_title("All Samples", fontsize=20, fontweight="bold", pad=20)
+    ax.legend(loc="upper left", frameon=True, fontsize=13)
+    fig.tight_layout()
+    return fig
+
 

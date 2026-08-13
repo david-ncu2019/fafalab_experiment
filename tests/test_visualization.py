@@ -8,7 +8,7 @@ import pandas as pd
 
 from sieve_analysis.analysis import calculate_composition, calculate_parameters, get_pan_mass_percent
 from sieve_analysis.input import calculate_sieve_distribution, parse_sample_location
-from sieve_analysis.visualization import plot_analysis, plot_raw_measurements, plot_site_composite_gsd
+from sieve_analysis.visualization import plot_analysis, plot_raw_measurements, plot_site_composite_gsd, plot_all_sites_composite_gsd
 
 
 def test_plot_functions_return_figures(valid_source: Path):
@@ -64,3 +64,19 @@ def test_plot_site_composite_gsd(valid_source: Path):
     finally:
         plt.close(fig)
 
+
+def test_plot_all_sites_composite_gsd(valid_source: Path):
+    data, total = calculate_sieve_distribution(pd.read_csv(valid_source), valid_source)
+    sites_data = {
+        "Site 1": [{"sample_name": "Sample_1-0", "df": data}],
+        "Site 4": [{"sample_name": "Sample_4_1-2", "df": data}],
+    }
+    fig = plot_all_sites_composite_gsd(sites_data)
+    try:
+        assert len(fig.axes) == 1
+        assert fig.axes[0].get_xlim() == (0.001, 10.0)
+        assert fig.axes[0].get_title() == "All Samples"
+        handles, labels = fig.axes[0].get_legend_handles_labels()
+        assert labels == ["Site 1", "Site 4"]
+    finally:
+        plt.close(fig)
