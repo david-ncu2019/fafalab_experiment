@@ -11,7 +11,7 @@ import pandas as pd
 from .analysis import calculate_composition, calculate_parameters, get_pan_mass_percent
 from .input import calculate_sieve_distribution, parse_sample_location
 from .reporting import OutputPaths, build_summary_record, create_output_paths, export_json_report
-from .visualization import plot_analysis, plot_raw_measurements
+from .visualization import plot_analysis, plot_raw_measurements, plot_site_composite_gsd
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,7 @@ class BatchResult:
     failed: int
     summary_path: Path | None
     failure_path: Path | None
+    composite_path: Path | None = None
 
 
 def safe_output_stem(sample_name: str) -> str:
@@ -172,6 +173,7 @@ def run_batch(
             print(f"\nFAILED: {csv_path.name}")
             print(f"  Reason: {error}")
 
+    composite_path = None
     if summary_records:
         summary_df = pd.DataFrame(summary_records)
         summary_path = (
@@ -180,6 +182,29 @@ def run_batch(
         )
         summary_df.to_csv(summary_path, index=False)
         print(f"\nSite summary -> {summary_path}")
+
+        # Collect processed samples for composite GSD summary plot
+        samples_data = []
+        for csv_path in csv_files:
+            try:
+                raw_df = pd.read_csv(csv_path)
+                df, _ = calculate_sieve_distribution(raw_df, csv_path)
+                samples_data.append({
+                    "sample_name": csv_path.stem,
+                    "df": df,
+                })
+            except Exception:
+                pass
+
+        if samples_data:
+            clean_site = main_folder.name.replace("Site_", "").replace("1_9", "1*9").replace("1-9", "1*9")
+            site_title = f"Site {clean_site}"
+            composite_fig = plot_site_composite_gsd(samples_data, site_title)
+            safe_site_filename = safe_output_stem(main_folder.name)
+            composite_path = main_folder / "figs" / f"{safe_site_filename}_GSD_Summary.png"
+            composite_fig.savefig(composite_path, dpi=save_dpi, bbox_inches="tight")
+            plt.close(composite_fig)
+            print(f"  Composite figure -> {composite_path}")
 
     if failures:
         failure_path = output_paths.reports / "failed_files.csv"
@@ -195,4 +220,5 @@ def run_batch(
         failed=len(failures),
         summary_path=summary_path if summary_records else None,
         failure_path=failure_path if failures else None,
+        composite_path=composite_path,
     )

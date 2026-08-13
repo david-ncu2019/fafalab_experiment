@@ -8,7 +8,7 @@ import pandas as pd
 
 from sieve_analysis.analysis import calculate_composition, calculate_parameters, get_pan_mass_percent
 from sieve_analysis.input import calculate_sieve_distribution, parse_sample_location
-from sieve_analysis.visualization import plot_analysis, plot_raw_measurements
+from sieve_analysis.visualization import plot_analysis, plot_raw_measurements, plot_site_composite_gsd
 
 
 def test_plot_functions_return_figures(valid_source: Path):
@@ -48,3 +48,19 @@ def test_information_boxes_use_light_background(valid_source: Path):
         assert all("\ufffd" not in label for label in visible_labels)
     finally:
         plt.close(figure)
+
+
+def test_plot_site_composite_gsd(valid_source: Path):
+    data, total = calculate_sieve_distribution(pd.read_csv(valid_source), valid_source)
+    samples_data = [{
+        "sample_name": "Sample_1-0",
+        "df": data,
+    }]
+    fig = plot_site_composite_gsd(samples_data, "Site 1")
+    try:
+        assert len(fig.axes) == 1
+        assert fig.axes[0].get_xlim() == (0.001, 10.0)
+        assert fig.axes[0].get_title() == "Site 1"
+    finally:
+        plt.close(fig)
+
